@@ -8,6 +8,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
     <style>
         * {
@@ -341,6 +342,13 @@
                 <option value="38">Ladakh (38)</option>
             </select>
         </div>
+
+        <div style="margin-bottom:10px;">
+            <label style="font-size:12px; font-weight:bold;">Import from Excel:</label>
+            <input type="file" id="excelUpload" accept=".xlsx, .xls, .csv" 
+                style="width:100%; padding:8px; border: 1px solid #ddd; border-radius: 8px;">
+        </div>
+
         <button class="btn btn-add" onclick="addRow()">+ Add New Item</button>
         <button class="btn btn-dl" onclick="preparePDF()">Download PDF & Sync Sheet</button>
     </div>
@@ -495,10 +503,8 @@
             btn.innerHTML = "Processing... Please wait";
             btn.disabled = true;
 
-            // Ensure all textareas are expanded
             document.querySelectorAll('textarea').forEach(el => autoExpand(el));
 
-            // Workaround for textarea line breaks in html2pdf/html2canvas
             const textareas = document.querySelectorAll('#quote textarea');
             const backups = [];
 
@@ -506,8 +512,6 @@
                 const displayDiv = document.createElement('div');
                 displayDiv.innerText = ta.value;
                 const style = window.getComputedStyle(ta);
-
-                // Copy styles to ensure visual consistency
                 displayDiv.style.whiteSpace = 'pre-wrap';
                 displayDiv.style.wordWrap = 'break-word';
                 displayDiv.style.fontFamily = style.fontFamily;
@@ -525,59 +529,64 @@
                 backups.push({ ta, displayDiv });
             });
 
-            const scriptURL = 'https://script.google.com/macros/s/AKfycbwHNCeO-DRAIOJTcbOQgTgBm_BarXPgDSxTx5HU1arKxWkdyGHc2AQIlVZozTMyKFc/exec';
-            const docNo = document.getElementById("qno").value;
-            const billedVal = document.getElementById("billed").value;
-            const custName = billedVal.split('\n')[0].trim();
-
-            let pList = [], qList = [], rList = [];
-            document.querySelectorAll("#tbody tr").forEach(row => {
-                pList.push(row.querySelector(".i_name").value);
-                qList.push(row.querySelector(".i_qty").value);
-                rList.push(row.querySelector(".i_rate").value);
-            });
-
-            const formData = new FormData();
-            formData.append('InvoiceNo', docNo);
-            formData.append('CustomerName', custName);
-            formData.append('Place', document.getElementById("place").value);
-            formData.append('Products', pList.join(", "));
-            formData.append('Qty', qList.join(", "));
-            formData.append('Rate', rList.join(", "));
-            formData.append('GrandTotal', document.getElementById("grand").innerText);
-
-            const fetchTask = fetch(scriptURL, { method: 'POST', body: formData }).catch(e => console.log('Offline'));
-
-            const element = document.getElementById('quote');
             const opt = {
                 margin: 0,
-                filename: docNo + '.pdf',
+                filename: `${document.getElementById("qno").value}.pdf`,
                 image: { type: 'jpeg', quality: 0.98 },
-                html2canvas: { scale: 3, useCORS: true, logging: false },
+                html2canvas: { scale: 2, useCORS: true },
                 jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
             };
 
             try {
-                // Run html2pdf and wait for completion
-                await html2pdf().from(element).set(opt).toPdf().get('pdf').save();
-                await fetchTask; // Also wait for the sheet sync to start
-            } catch (err) {
-                console.error(err);
-                alert("PDF Generation Failed");
+                await html2pdf().set(opt).from(document.getElementById("quote")).save();
             } finally {
-                // Restore textareas
-                backups.forEach(({ ta, displayDiv }) => {
-                    displayDiv.remove();
-                    ta.style.display = 'block';
+                backups.forEach(b => {
+                    b.ta.style.display = 'block';
+                    b.displayDiv.remove();
                 });
-
-                // Restore button
                 btn.innerHTML = originalText;
                 btn.disabled = false;
             }
         }
-        addRow();
+
+        // NEW FEATURE: Excel Import Logic
+        document.getElementById('excelUpload').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            const reader = new FileReader();
+
+            reader.onload = function(e) {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                const rows = XLSX.utils.sheet_to_json(firstSheet);
+
+                // Optional: document.getElementById("tbody").innerHTML = "";
+
+                rows.forEach(rowData => {
+                    const name = rowData["Name"] || "";
+                    const cas = rowData["CAS No."] || "";
+                    const pack = rowData["Quantity"] || "";
+                    let rawPrice = rowData["Price"] ? String(rowData["Price"]).split('/')[0] : "0";
+                    let rate = parseFloat(rawPrice.replace(/[^0-9.]/g, '')) || 0;
+
+                    let tr = document.createElement("tr");
+                    tr.innerHTML = `
+                        <td><textarea class="i_name" oninput="autoExpand(this); calc()">${name}</textarea></td>
+                        <td><textarea class="i_cas" oninput="autoExpand(this)">${cas}</textarea></td>
+                        <td><textarea class="i_pack" oninput="autoExpand(this)">${pack}</textarea></td>
+                        <td><input type="number" class="i_qty num-input" value="1" oninput="calc()"></td>
+                        <td><input class="num-input" value="Nos"></td>
+                        <td><input type="number" class="i_rate num-input" value="${rate}" oninput="calc()"></td>
+                        <td><input type="number" class="i_gst num-input" value="18" oninput="calc()"></td>
+                        <td><span class="i_total">0.00</span></td>
+                    `;
+                    document.getElementById("tbody").appendChild(tr);
+                    tr.querySelectorAll('textarea').forEach(ta => autoExpand(ta));
+                });
+                calc();
+            };
+            reader.readAsArrayBuffer(file);
+        });
     </script>
 </body>
-
 </html>
