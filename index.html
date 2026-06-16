@@ -1,592 +1,1056 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SVT Document System</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SVT Document System</title>
 
-    <style>
-        * {
-            box-sizing: border-box;
-        }
+<!-- pdfmake (selectable text PDFs) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
 
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #f0f2f5;
-            margin: 0;
-            padding: 20px;
-            display: flex;
-            justify-content: center;
-            align-items: flex-start;
-            gap: 30px;
-            flex-wrap: wrap;
-        }
+<!-- flatpickr date picker -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 
-        @media (max-width: 850px) {
-            body {
-                padding: 10px;
-                gap: 20px;
-            }
-        }
+<!-- SheetJS for Excel import -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
-        .no-print {
-            width: 400px;
-            background: white;
-            padding: 20px;
-            border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-            position: sticky;
-            top: 20px;
-            z-index: 100;
-        }
+<style>
+/* ── Reset & Base ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-        @media (max-width: 850px) {
-            .no-print {
-                width: 100%;
-                position: relative;
-                top: 0;
-                margin-bottom: 20px;
-            }
-        }
+:root {
+  --ink:     #1c1e21;
+  --muted:   #5f6368;
+  --border:  #dadce0;
+  --surface: #ffffff;
+  --bg:      #f0f2f5;
+  --accent:  #1877f2;
+  --danger:  #e53935;
+  --success: #2e7d32;
+  --radius:  10px;
+  --shadow:  0 2px 12px rgba(0,0,0,0.10);
+}
 
-        .btn {
-            padding: 12px;
-            border: none;
-            border-radius: 8px;
-            font-weight: bold;
-            cursor: pointer;
-            width: 100%;
-            margin-top: 10px;
-        }
+body {
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  padding: 24px 16px;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 28px;
+  flex-wrap: wrap;
+  min-height: 100vh;
+}
 
-        .btn:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-            background: #ccc;
-        }
+/* ── Control Panel ── */
+.panel {
+  width: 380px;
+  background: var(--surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 22px 20px;
+  position: sticky;
+  top: 20px;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
 
-        .btn-add {
-            background: #e7f3ff;
-            color: #1877f2;
-        }
+.panel-title {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: .4px;
+  color: var(--ink);
+  border-bottom: 2px solid var(--ink);
+  padding-bottom: 10px;
+}
 
-        .btn-dl {
-            background: #1c1e21;
-            color: white;
-        }
+.field-group { display: flex; flex-direction: column; gap: 5px; }
+.field-group label { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
 
-        .preview-container {
-            width: auto;
-            max-width: 100%;
-            overflow-x: auto;
-            padding-bottom: 20px;
-        }
+.field-group select,
+.field-group input[type="text"],
+.field-group input[type="file"] {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--ink);
+  background: var(--surface);
+  transition: border-color .2s;
+}
+.field-group select:focus,
+.field-group input[type="text"]:focus { outline: none; border-color: var(--accent); }
 
-        #quote {
-            display: block;
-            width: 210mm;
-            min-height: 296mm;
-            background: white;
-            padding: 15mm;
-            box-sizing: border-box;
-            color: black;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-            margin: 0 auto;
-            transform-origin: top center;
-        }
+.serial-display {
+  background: #eef3fc;
+  border: 1px dashed var(--accent);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 13px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.serial-display span { font-weight: 700; color: var(--accent); font-size: 15px; letter-spacing: .5px; }
+.serial-display button {
+  font-size: 11px;
+  background: none;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  border-radius: 6px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
 
-        /* Responsive scaling for preview on very small screens */
-        @media (max-width: 500px) {
-            .preview-container {
-                overflow-x: auto;
-                display: block;
-                padding: 0;
-            }
+.sync-status {
+  font-size: 11px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  display: none;
+}
+.sync-status.ok  { background: #e8f5e9; color: var(--success); display: block; }
+.sync-status.err { background: #ffebee; color: var(--danger);  display: block; }
+.sync-status.loading { background: #fff8e1; color: #f57f17; display: block; }
 
-            #quote {
-                margin: 0;
-                /* Optional: reduce padding on mobile to save space */
-                padding: 10mm;
-            }
-        }
+.btn {
+  width: 100%;
+  padding: 12px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity .2s, transform .1s;
+  letter-spacing: .3px;
+}
+.btn:active { transform: scale(.98); }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
 
-        .p-header {
-            text-align: center;
-            border-bottom: 1px solid #000;
-            padding-bottom: 8px;
-            margin-bottom: 15px;
-        }
+.btn-add { background: #eef3fc; color: var(--accent); }
+.btn-dl  { background: var(--ink); color: #fff; }
+.btn-dl:hover:not(:disabled) { background: #2d3033; }
 
-        .p-header h2 {
-            margin: 0 0 5px 0;
-        }
+/* ── Preview Container ── */
+.preview-wrap {
+  overflow-x: auto;
+  padding-bottom: 24px;
+}
 
-        .p-header p {
-            margin: 2px 0;
-        }
+/* ── A4 Document ── */
+#quote {
+  width: 210mm;
+  min-height: 296mm;
+  background: #fff;
+  padding: 14mm 15mm;
+  color: #000;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.13);
+  margin: 0 auto;
+  font-family: 'Segoe UI', Arial, sans-serif;
+  font-size: 11px;
+  position: relative;
+}
 
-        .doc-title {
-            text-align: center;
-            text-decoration: underline;
-            margin: 5px 0;
-            font-size: 18px;
-        }
+/* Header */
+.p-header {
+  text-align: center;
+  border-bottom: 2px solid #000;
+  padding-bottom: 8px;
+  margin-bottom: 12px;
+}
+.p-header h2 { font-size: 18px; margin-bottom: 3px; }
+.p-header p  { font-size: 10px; margin: 2px 0; color: #333; }
 
-        .p-info-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 10px;
-        }
+/* Document title */
+.doc-title {
+  text-align: center;
+  font-size: 15px;
+  font-weight: 700;
+  text-decoration: underline;
+  margin: 8px 0 10px;
+  letter-spacing: 1px;
+}
 
-        .p-info-table td {
-            border: 1px solid #000;
-            padding: 6px;
-            font-size: 11px;
-        }
+/* Info table */
+.p-info-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 10px;
+}
+.p-info-table td {
+  border: 1px solid #000;
+  padding: 5px 7px;
+  font-size: 10.5px;
+  vertical-align: middle;
+}
+.p-info-table td b { white-space: nowrap; }
+.p-info-table input {
+  width: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 10.5px;
+  font-family: inherit;
+}
 
-        .p-info-table input {
-            width: 100%;
-            border: none;
-            outline: none;
-            background: transparent;
-            font-size: 11px;
-        }
+/* Address boxes */
+.p-address-row {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.p-address-box {
+  flex: 1;
+  border: 1px solid #000;
+  padding: 7px;
+  min-height: 90px;
+  font-size: 10.5px;
+  position: relative;
+}
+.p-address-box b { display: block; margin-bottom: 3px; }
+.p-address-box textarea {
+  width: 100%;
+  min-height: 65px;
+  resize: none;
+  border: none;
+  outline: none;
+  font-family: inherit;
+  font-size: 10.5px;
+  line-height: 1.45;
+  background: transparent;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  overflow: hidden;
+}
+.same-check {
+  position: absolute;
+  top: 6px; right: 7px;
+  font-size: 9.5px;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+.same-check input { cursor: pointer; }
 
-        .p-address-row {
-            display: flex;
-            gap: 15px;
-            margin-bottom: 30px;
-            align-items: stretch;
-            width: 100%;
-        }
+/* Item table */
+table.item-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  margin-top: 8px;
+}
+table.item-table th,
+table.item-table td {
+  border: 1px solid #000;
+  padding: 0;
+  font-size: 10.5px;
+  vertical-align: top;
+}
+table.item-table th {
+  background: #f2f2f2;
+  padding: 7px 5px;
+  font-weight: 700;
+  text-align: center;
+  vertical-align: middle;
+  font-size: 10px;
+}
+table.item-table td textarea,
+table.item-table td input[type="number"],
+table.item-table td input[type="text"] {
+  width: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: 10.5px;
+  padding: 6px 5px;
+  resize: none;
+  display: block;
+  overflow: hidden;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  text-align: center;
+  box-sizing: border-box;
+}
+table.item-table td textarea { text-align: left; }
 
-        .p-address-box {
-            flex: 1;
-            border: 1px solid #000;
-            padding: 8px;
-            min-height: 100px;
-            display: flex;
-            flex-direction: column;
-        }
+.i_total_wrap {
+  padding: 5px 4px;
+  text-align: center;
+  line-height: 1.5;
+}
+.i_total_base { font-size: 9.5px; color: #555; }
+.i_total_gst  { font-size: 9.5px; color: #555; }
+.i_total_amt  { font-weight: 700; font-size: 10.5px; }
 
-        .p-address-box textarea {
-            width: 100%;
-            min-height: 80px;
-            overflow: hidden;
-            resize: none;
-            border: none;
-            font-family: inherit;
-            font-size: 11px;
-            line-height: 1.4;
-            white-space: pre-wrap;
-            word-wrap: break-word;
-            background: transparent;
-            display: block;
-            outline: none;
-        }
+/* Delete button (shown in panel only) */
+.del-btn {
+  background: none;
+  border: none;
+  color: var(--danger);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 6px 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+.del-btn:hover { background: #ffebee; }
 
-        /* Table Wrapping & Borders */
-        table.item-table {
-            width: 100%;
-            margin-top: 10px;
-            border-collapse: collapse;
-            table-layout: fixed;
-            border: 1px solid #000;
-        }
+/* Totals */
+.p-totals {
+  text-align: right;
+  margin-top: 14px;
+  font-size: 12px;
+  line-height: 1.7;
+}
+.p-grand-total {
+  font-size: 15px;
+  font-weight: 700;
+  border-top: 1.5px solid #000;
+  padding-top: 4px;
+  display: inline-block;
+  min-width: 200px;
+}
+.p-words { font-size: 10.5px; margin-top: 4px; }
 
-        table.item-table th,
-        table.item-table td {
-            border: 1px solid #000;
-            padding: 0;
-            font-size: 11px;
-            vertical-align: top;
-        }
+/* Bottom row */
+.p-bottom-row {
+  display: flex;
+  border: 1px solid #000;
+  margin-top: 16px;
+}
+.p-bottom-box {
+  padding: 8px;
+  font-size: 9.5px;
+  flex: 1;
+  border-right: 1px solid #000;
+  line-height: 1.5;
+}
+.p-bottom-box:last-child { border-right: none; }
+.p-bottom-box b { display: block; margin-bottom: 3px; font-size: 10px; }
 
-        table.item-table th {
-            background: #f2f2f2;
-            padding: 8px;
-            font-weight: bold;
-            text-align: center;
-            vertical-align: middle;
-        }
+/* Footer */
+.p-footer {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 44px;
+  font-size: 11px;
+}
 
-        table.item-table td textarea,
-        table.item-table td input {
-            width: 100%;
-            border: none !important;
-            font-family: inherit;
-            font-size: 11px;
-            background: transparent !important;
-            padding: 8px !important;
-            margin: 0;
-            resize: none;
-            display: block;
-            outline: none;
-            box-sizing: border-box;
-            white-space: pre-wrap;
-            word-wrap: break-word;
-            overflow: hidden;
-            text-align: center;
-        }
+/* Print: hide panel */
+@media print {
+  .panel, .preview-wrap > *:not(#quote) { display: none !important; }
+  body { background: white; padding: 0; display: block; }
+  #quote { box-shadow: none; margin: 0; width: 100%; }
+  .del-col { display: none !important; }
+}
 
-        table.item-table td textarea {
-            text-align: left;
-        }
-
-        .num-input {
-            text-align: center !important;
-        }
-
-        .i_total {
-            padding: 8px !important;
-            text-align: center;
-            font-weight: 500;
-            display: block;
-        }
-
-        .p-totals {
-            text-align: right;
-            margin-top: 15px;
-            font-size: 13px;
-            line-height: 1.6;
-        }
-
-        .p-grand-total {
-            font-size: 16px;
-            font-weight: bold;
-            border-top: 1px solid #000;
-            padding-top: 5px;
-            display: inline-block;
-            min-width: 200px;
-        }
-
-        .p-bottom-row {
-            display: flex;
-            justify-content: space-between;
-            margin-top: 20px;
-            border: 1px solid #000;
-        }
-
-        .p-bottom-box {
-            padding: 8px;
-            font-size: 10px;
-            flex: 1;
-            border-right: 1px solid #000;
-        }
-
-        .p-footer {
-            display: flex;
-            justify-content: space-between;
-            margin-top: 50px;
-            font-size: 12px;
-        }
-    </style>
+/* Mobile */
+@media (max-width: 860px) {
+  .panel { width: 100%; position: relative; top: 0; }
+  body { flex-direction: column; align-items: stretch; padding: 12px; }
+}
+</style>
 </head>
-
 <body>
 
-    <div class="no-print">
-        <h3 style="text-align:center;">SVT Document Editor</h3>
-        <div style="margin-bottom:10px;">
-            <label style="font-size:12px; font-weight:bold;">Document Type:</label>
-            <select id="docType" onchange="updateTitle()"
-                style="width:100%; padding:12px; font-size: 16px; border-radius: 8px; border: 1px solid #ddd;">
-                <option value="QUOTATION">Quotation</option>
-                <option value="PROFORMA INVOICE">Proforma Invoice</option>
-            </select>
-        </div>
-        <div style="margin-bottom:10px;">
-            <label style="font-size:12px; font-weight:bold;">Select State (Place of Supply):</label>
-            <select id="clientState" onchange="calc()"
-                style="width:100%; padding:12px; font-size: 16px; border-radius: 8px; border: 1px solid #ddd;">
-                <option value="01">Jammu & Kashmir (01)</option>
-                <option value="02">Himachal Pradesh (02)</option>
-                <option value="03">Punjab (03)</option>
-                <option value="04">Chandigarh (04)</option>
-                <option value="05">Uttarakhand (05)</option>
-                <option value="06">Haryana (06)</option>
-                <option value="07">Delhi (07)</option>
-                <option value="08">Rajasthan (08)</option>
-                <option value="09" selected>Uttar Pradesh (09)</option>
-                <option value="10">Bihar (10)</option>
-                <option value="11">Sikkim (11)</option>
-                <option value="12">Arunachal Pradesh (12)</option>
-                <option value="13">Nagaland (13)</option>
-                <option value="14">Manipur (14)</option>
-                <option value="15">Mizoram (15)</option>
-                <option value="16">Tripura (16)</option>
-                <option value="17">Meghalaya (17)</option>
-                <option value="18">Assam (18)</option>
-                <option value="19">West Bengal (19)</option>
-                <option value="20">Jharkhand (20)</option>
-                <option value="21">Odisha (21)</option>
-                <option value="22">Chhattisgarh (22)</option>
-                <option value="23">Madhya Pradesh (23)</option>
-                <option value="24">Gujarat (24)</option>
-                <option value="25">Daman & Diu (25)</option>
-                <option value="26">Dadra & Nagar Haveli (26)</option>
-                <option value="27">Maharashtra (27)</option>
-                <option value="30">Goa (30)</option>
-                <option value="31">Lakshadweep (31)</option>
-                <option value="32">Kerala (32)</option>
-                <option value="33">Tamil Nadu (33)</option>
-                <option value="34">Puducherry (34)</option>
-                <option value="35">Andaman & Nicobar Islands (35)</option>
-                <option value="36">Telangana (36)</option>
-                <option value="37">Andhra Pradesh (37)</option>
-                <option value="38">Ladakh (38)</option>
-            </select>
-        </div>
+<!-- ═══════════════════════════════════════
+     CONTROL PANEL
+═══════════════════════════════════════ -->
+<div class="panel" id="controlPanel">
+  <div class="panel-title">SVT Document Editor</div>
 
-        <div style="margin-bottom:10px;">
-            <label style="font-size:12px; font-weight:bold;">Import from Excel:</label>
-            <input type="file" id="excelUpload" accept=".xlsx, .xls, .csv" 
-                style="width:100%; padding:8px; border: 1px solid #ddd; border-radius: 8px;">
-        </div>
+  <div class="field-group">
+    <label>Document Type</label>
+    <select id="docType" onchange="onTypeChange()">
+      <option value="QUOTATION">Quotation</option>
+      <option value="PROFORMA INVOICE">Proforma Invoice</option>
+    </select>
+  </div>
 
-        <button class="btn btn-add" onclick="addRow()">+ Add New Item</button>
-        <button class="btn btn-dl" onclick="preparePDF()">Download PDF & Sync Sheet</button>
+  <div class="field-group">
+    <label>Serial Number</label>
+    <div class="serial-display">
+      <div>Next: <span id="serialPreview">SVT-QT-06-001</span></div>
+      <button onclick="resetCounter()">Reset</button>
     </div>
+  </div>
 
-    <div class="preview-container">
-        <div id="quote">
-            <div class="p-header">
-                <h2>SIDDHI VINAYAK TRADERS</h2>
-                <p>12/306, Arya Nagar, Firozabad, UP - 283203</p>
-                <p>GSTIN: 09BFZPK4340C2Z7 | +91 9286107722 | svtjp11@gmail.com</p>
-            </div>
+  <div class="field-group">
+    <label>Place of Supply (State)</label>
+    <select id="clientState" onchange="calc()">
+      <option value="01">Jammu & Kashmir (01)</option>
+      <option value="02">Himachal Pradesh (02)</option>
+      <option value="03">Punjab (03)</option>
+      <option value="04">Chandigarh (04)</option>
+      <option value="05">Uttarakhand (05)</option>
+      <option value="06">Haryana (06)</option>
+      <option value="07">Delhi (07)</option>
+      <option value="08">Rajasthan (08)</option>
+      <option value="09" selected>Uttar Pradesh (09)</option>
+      <option value="10">Bihar (10)</option>
+      <option value="11">Sikkim (11)</option>
+      <option value="12">Arunachal Pradesh (12)</option>
+      <option value="13">Nagaland (13)</option>
+      <option value="14">Manipur (14)</option>
+      <option value="15">Mizoram (15)</option>
+      <option value="16">Tripura (16)</option>
+      <option value="17">Meghalaya (17)</option>
+      <option value="18">Assam (18)</option>
+      <option value="19">West Bengal (19)</option>
+      <option value="20">Jharkhand (20)</option>
+      <option value="21">Odisha (21)</option>
+      <option value="22">Chhattisgarh (22)</option>
+      <option value="23">Madhya Pradesh (23)</option>
+      <option value="24">Gujarat (24)</option>
+      <option value="25">Daman & Diu (25)</option>
+      <option value="26">Dadra & Nagar Haveli (26)</option>
+      <option value="27">Maharashtra (27)</option>
+      <option value="30">Goa (30)</option>
+      <option value="31">Lakshadweep (31)</option>
+      <option value="32">Kerala (32)</option>
+      <option value="33">Tamil Nadu (33)</option>
+      <option value="34">Puducherry (34)</option>
+      <option value="35">Andaman & Nicobar Islands (35)</option>
+      <option value="36">Telangana (36)</option>
+      <option value="37">Andhra Pradesh (37)</option>
+      <option value="38">Ladakh (38)</option>
+    </select>
+  </div>
 
-            <div class="doc-title">
-                <h3 id="docTitle">QUOTATION</h3>
-            </div>
+  <div class="field-group">
+    <label>Google Sheets Sync URL</label>
+    <input type="text" id="sheetsUrl" placeholder="Paste your Apps Script Web App URL here"
+           oninput="saveSheetsUrl()">
+  </div>
 
-            <table class="p-info-table">
-                <tr>
-                    <td><b id="docLabel">Quotation No:</b></td>
-                    <td><input id="qno" value="SVT-0001"></td>
-                    <td><b>Date:</b></td>
-                    <td><input id="today"></td>
-                </tr>
-                <tr>
-                    <td><b>Place (City):</b></td>
-                    <td><input id="place" value=" "></td>
-                    <td><b>Mode:</b></td>
-                    <td><input id="mode" value="Courier"></td>
-                </tr>
-            </table>
+  <div id="syncStatus" class="sync-status"></div>
 
-            <div class="p-address-row">
-                <div class="p-address-box"><b>Billed To:</b><br><textarea id="billed"
-                        placeholder="Name&#10;Address&#10;GSTIN" oninput="autoExpand(this); calc()"></textarea></div>
-                <div class="p-address-box"><b>Shipped To:</b><br><textarea id="shipped"
-                        oninput="autoExpand(this)"></textarea></div>
-            </div>
+  <div class="field-group">
+    <label>Import Items from Excel</label>
+    <input type="file" id="excelUpload" accept=".xlsx,.xls,.csv" onchange="importExcel(this)">
+  </div>
 
-            <table class="item-table">
-                <thead>
-                    <tr>
-                        <th style="width: 32%;">Item Description</th>
-                        <th style="width: 15%;">CAS No</th>
-                        <th>Pack</th>
-                        <th style="width: 8%;">Qty</th>
-                        <th style="width: 8%;">Unit</th>
-                        <th style="width: 10%;">Rate</th>
-                        <th style="width: 7%;">GST%</th>
-                        <th style="width: 12%;">Total</th>
-                    </tr>
-                </thead>
-                <tbody id="tbody"></tbody>
-            </table>
+  <button class="btn btn-add" onclick="addRow()">+ Add Item Row</button>
+  <button class="btn btn-dl" id="dlBtn" onclick="confirmAndGenerate()">⬇ Download PDF & Sync Sheet</button>
+</div>
 
-            <div class="p-totals">
-                <p>Subtotal: ₹ <span id="sub">0.00</span></p>
-                <div id="p_tax_container"></div>
-                <p>Round Off: ₹ <span id="round">0.00</span></p>
-                <div class="p-grand-total">Total: ₹ <span id="grand">0.00</span></div>
-                <p><b>Amount in Words:</b> <span id="words">Zero Rupees Only</span></p>
-            </div>
+<!-- ═══════════════════════════════════════
+     A4 DOCUMENT PREVIEW
+═══════════════════════════════════════ -->
+<div class="preview-wrap">
+<div id="quote">
 
-            <div class="p-bottom-row">
-                <div class="p-bottom-box">
-                    <b>Bank Details:</b><br>Bank: UNION BANK OF INDIA<br>A/C No.: 424301010040874<br>IFSC Code:
-                    UBIN0542431
-                </div>
-                <div class="p-bottom-box" style="border-right:none;">
-                    <b>Terms & Conditions:</b><br>
-                    1. KINDLY CHECK COMPLETE SPECIFICATIONS BEFORE PLACING YOUR CONFIRMED PURCHASE ORDER.<br>
-                    2. GST % & HSN Code may be changed as per Government act.<br>
-                    3. Payment 100% Advance by Cheque/RTGS/NEFT.<br>
-                    4. Price validity 7 days unless specified.<br>
-                    5. Stock details subject to change.<br>
-                    6. Goods once sold will not be taken back.<br>
-                    7. The mentioned item/items in the quotation are not for Medicinal or Direct human consumption purpose.
-                </div>
-            </div>
+  <div class="p-header">
+    <h2>SIDDHI VINAYAK TRADERS</h2>
+    <p>12/306, Arya Nagar, Firozabad, UP – 283203</p>
+    <p>GSTIN: 09BFZPK4340C2Z7 &nbsp;|&nbsp; +91 9286107722 &nbsp;|&nbsp; svtjp11@gmail.com</p>
+  </div>
 
-            <div class="p-footer">
-                <div>Receiver's Signature<br><br>____________________</div>
-                <div style="text-align: right;">For <b>Siddhi Vinayak Traders</b><br><br>Authorised Signatory</div>
-            </div>
-        </div>
+  <div class="doc-title" id="docTitle">QUOTATION</div>
+
+  <table class="p-info-table">
+    <tr>
+      <td style="width:18%"><b id="docLabel">Quotation No:</b></td>
+      <td style="width:32%"><input id="qno" value="SVT-QT-06-001" readonly style="font-weight:700;"></td>
+      <td style="width:10%"><b>Date:</b></td>
+      <td><input id="today"></td>
+    </tr>
+    <tr>
+      <td><b>Place (City):</b></td>
+      <td><input id="place" placeholder="City"></td>
+      <td><b>Mode:</b></td>
+      <td><input id="mode" value="Courier"></td>
+    </tr>
+  </table>
+
+  <div class="p-address-row">
+    <div class="p-address-box">
+      <b>Billed To:</b>
+      <textarea id="billed" placeholder="Name&#10;Address&#10;GSTIN" oninput="autoExpand(this)"></textarea>
     </div>
+    <div class="p-address-box">
+      <b>Shipped To:</b>
+      <label class="same-check">
+        <input type="checkbox" id="sameCheck" onchange="syncShipped()"> Same as Billed
+      </label>
+      <textarea id="shipped" placeholder="Name&#10;Address" oninput="autoExpand(this)"></textarea>
+    </div>
+  </div>
 
-    <script>
-        flatpickr("#today", { dateFormat: "d-M-Y", defaultDate: new Date() });
+  <table class="item-table">
+    <thead>
+      <tr>
+        <th style="width:29%">Item Description</th>
+        <th style="width:13%">CAS No</th>
+        <th style="width:10%">Pack</th>
+        <th style="width:7%">Qty</th>
+        <th style="width:7%">Unit</th>
+        <th style="width:10%">Rate (₹)</th>
+        <th style="width:6%">GST%</th>
+        <th style="width:11%">Amount</th>
+        <th style="width:7%" class="del-col">Del</th>
+      </tr>
+    </thead>
+    <tbody id="tbody"></tbody>
+  </table>
 
-        function autoExpand(el) { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; }
+  <div class="p-totals">
+    <p>Subtotal: ₹ <span id="sub">0.00</span></p>
+    <div id="p_tax_container"></div>
+    <p>Round Off: ₹ <span id="round">0.00</span></p>
+    <div class="p-grand-total">Grand Total: ₹ <span id="grand">0.00</span></div>
+    <p class="p-words"><b>Amount in Words:</b> <span id="words">Zero Rupees Only</span></p>
+  </div>
 
-        function updateTitle() {
-            let type = document.getElementById("docType").value;
-            document.getElementById("docTitle").innerText = type;
-            document.getElementById("docLabel").innerText = (type === "PROFORMA INVOICE") ? "PI No:" : "Quotation No:";
-        }
+  <div class="p-bottom-row">
+    <div class="p-bottom-box">
+      <b>Bank Details:</b>
+      Bank: UNION BANK OF INDIA<br>
+      A/C No.: 424301010040874<br>
+      IFSC: UBIN0542431
+    </div>
+    <div class="p-bottom-box">
+      <b>Terms &amp; Conditions:</b>
+      1. Check complete specifications before placing a confirmed purchase order.<br>
+      2. GST % &amp; HSN Code subject to change per Government notification.<br>
+      3. Payment 100% advance by Cheque / RTGS / NEFT.<br>
+      4. Price validity: 7 days unless otherwise specified.<br>
+      5. Stock details subject to change without notice.<br>
+      6. Goods once sold will not be taken back.<br>
+      7. Items listed are not for medicinal or direct human consumption.
+    </div>
+  </div>
 
-        function addRow() {
-            let tr = document.createElement("tr");
-            tr.innerHTML = `
-            <td><textarea class="i_name" oninput="autoExpand(this); calc()" placeholder="Item name"></textarea></td>
-            <td><textarea class="i_cas" oninput="autoExpand(this)" placeholder="CAS"></textarea></td>
-            <td><textarea class="i_pack" oninput="autoExpand(this)" placeholder="Pack"></textarea></td>
-            <td><input type="number" class="i_qty num-input" value="1" oninput="calc()"></td>
-            <td><input class="num-input" value="kg"></td>
-            <td><input type="number" class="i_rate num-input" value="0" oninput="calc()"></td>
-            <td><input type="number" class="i_gst num-input" value="18" oninput="calc()"></td>
-            <td><span class="i_total">0.00</span></td>
-        `;
-            document.getElementById("tbody").appendChild(tr);
-            calc();
-        }
+  <div class="p-footer">
+    <div>Receiver's Signature<br><br>____________________</div>
+    <div style="text-align:right">For <b>Siddhi Vinayak Traders</b><br><br>Authorised Signatory</div>
+  </div>
 
-        function calc() {
-            let sub = 0, tax = 0;
-            let isUP = document.getElementById("clientState").value === "09";
-            document.querySelectorAll("#tbody tr").forEach(row => {
-                let q = parseFloat(row.querySelector(".i_qty").value) || 0;
-                let r = parseFloat(row.querySelector(".i_rate").value) || 0;
-                let g = parseFloat(row.querySelector(".i_gst").value) || 0;
-                let rowAmt = q * r;
-                let gstAmt = rowAmt * (g / 100);
-                row.querySelector(".i_total").innerText = (rowAmt + gstAmt).toFixed(2);
-                sub += rowAmt; tax += gstAmt;
-            });
-            let rounded = Math.round(sub + tax);
-            document.getElementById("sub").innerText = sub.toFixed(2);
-            document.getElementById("p_tax_container").innerHTML = isUP ?
-                `<p>CGST: ₹ ${(tax / 2).toFixed(2)}</p><p>SGST: ₹ ${(tax / 2).toFixed(2)}</p>` : `<p>IGST: ₹ ${tax.toFixed(2)}</p>`;
-            document.getElementById("round").innerText = (rounded - (sub + tax)).toFixed(2);
-            document.getElementById("grand").innerText = rounded.toFixed(2);
-            document.getElementById("words").innerText = numberToWordsIndian(rounded);
-        }
+</div><!-- #quote -->
+</div><!-- .preview-wrap -->
 
-        function numberToWordsIndian(num) {
-            const ones = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"];
-            const tens = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
-            function convert(n) {
-                if (n < 20) return ones[n];
-                if (n < 100) return tens[Math.floor(n / 10)] + (n % 10 !== 0 ? " " + ones[n % 10] : "");
-                if (n < 1000) return ones[Math.floor(n / 100)] + " Hundred" + (n % 100 !== 0 ? " " + convert(n % 100) : "");
-                if (n < 100000) return convert(Math.floor(n / 1000)) + " Thousand" + (n % 1000 !== 0 ? " " + convert(n % 1000) : "");
-                if (n < 10000000) return convert(Math.floor(n / 100000)) + " Lakh" + (n % 100000 !== 0 ? " " + convert(n % 100000) : "");
-                return convert(Math.floor(n / 10000000)) + " Crore" + (n % 10000000 !== 0 ? " " + convert(n % 10000000) : "");
-            }
-            return num > 0 ? convert(num) + " Rupees Only" : "Zero Rupees Only";
-        }
+<!-- ═══════════════════════════════════════
+     JAVASCRIPT
+═══════════════════════════════════════ -->
+<script>
+// ── Date picker ────────────────────────────────────────────
+flatpickr("#today", { dateFormat: "d-M-Y", defaultDate: new Date() });
 
-        async function preparePDF() {
-            const btn = document.querySelector(".btn-dl");
-            const originalText = btn.innerHTML;
-            btn.innerHTML = "Processing... Please wait";
-            btn.disabled = true;
+// ── Auto-expand textareas ──────────────────────────────────
+function autoExpand(el) {
+  el.style.height = "auto";
+  el.style.height = el.scrollHeight + "px";
+}
+document.querySelectorAll("textarea").forEach(autoExpand);
 
-            document.querySelectorAll('textarea').forEach(el => autoExpand(el));
+// ── Same-as-billed checkbox ────────────────────────────────
+function syncShipped() {
+  const cb = document.getElementById("sameCheck");
+  const shipped = document.getElementById("shipped");
+  if (cb.checked) {
+    shipped.value = document.getElementById("billed").value;
+    shipped.disabled = true;
+    autoExpand(shipped);
+  } else {
+    shipped.disabled = false;
+  }
+}
+document.getElementById("billed").addEventListener("input", function() {
+  if (document.getElementById("sameCheck").checked) {
+    const s = document.getElementById("shipped");
+    s.value = this.value;
+    autoExpand(s);
+  }
+});
 
-            const textareas = document.querySelectorAll('#quote textarea');
-            const backups = [];
+// ── Serial number logic ────────────────────────────────────
+// Key pattern: svt_counter_QT_06  →  stores last used number
+function getMonthStr() {
+  return String(new Date().getMonth() + 1).padStart(2, "0");
+}
 
-            textareas.forEach(ta => {
-                const displayDiv = document.createElement('div');
-                displayDiv.innerText = ta.value;
-                const style = window.getComputedStyle(ta);
-                displayDiv.style.whiteSpace = 'pre-wrap';
-                displayDiv.style.wordWrap = 'break-word';
-                displayDiv.style.fontFamily = style.fontFamily;
-                displayDiv.style.fontSize = style.fontSize;
-                displayDiv.style.lineHeight = style.lineHeight;
-                displayDiv.style.padding = style.padding;
-                displayDiv.style.color = style.color;
-                displayDiv.style.textAlign = style.textAlign;
-                displayDiv.style.width = '100%';
-                displayDiv.style.boxSizing = 'border-box';
-                displayDiv.style.minHeight = style.height;
+function getTypeCode() {
+  return document.getElementById("docType").value === "PROFORMA INVOICE" ? "PI" : "QT";
+}
 
-                ta.parentElement.insertBefore(displayDiv, ta);
-                ta.style.display = 'none';
-                backups.push({ ta, displayDiv });
-            });
+function getStorageKey() {
+  return `svt_counter_${getTypeCode()}_${getMonthStr()}`;
+}
 
-            const opt = {
-                margin: 0,
-                filename: `${document.getElementById("qno").value}.pdf`,
-                image: { type: 'jpeg', quality: 0.98 },
-                html2canvas: { scale: 2, useCORS: true },
-                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-            };
+function peekNextSerial() {
+  const key = getStorageKey();
+  const last = parseInt(localStorage.getItem(key) || "0");
+  const next = last + 1;
+  return `SVT-${getTypeCode()}-${getMonthStr()}-${String(next).padStart(3, "0")}`;
+}
 
-            try {
-                await html2pdf().set(opt).from(document.getElementById("quote")).save();
-            } finally {
-                backups.forEach(b => {
-                    b.ta.style.display = 'block';
-                    b.displayDiv.remove();
-                });
-                btn.innerHTML = originalText;
-                btn.disabled = false;
-            }
-        }
+function consumeSerial() {
+  const key = getStorageKey();
+  const last = parseInt(localStorage.getItem(key) || "0");
+  const next = last + 1;
+  localStorage.setItem(key, String(next));
+  return `SVT-${getTypeCode()}-${getMonthStr()}-${String(next).padStart(3, "0")}`;
+}
 
-        // NEW FEATURE: Excel Import Logic
-        document.getElementById('excelUpload').addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            const reader = new FileReader();
+function updateSerialPreview() {
+  document.getElementById("serialPreview").textContent = peekNextSerial();
+}
 
-            reader.onload = function(e) {
-                const data = new Uint8Array(e.target.result);
-                const workbook = XLSX.read(data, { type: 'array' });
-                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-                const rows = XLSX.utils.sheet_to_json(firstSheet);
+function resetCounter() {
+  const key = getStorageKey();
+  const type = getTypeCode();
+  const month = getMonthStr();
+  if (confirm(`Reset ${type} counter for month ${month} back to 0?`)) {
+    localStorage.setItem(key, "0");
+    updateSerialPreview();
+    alert("Counter reset. Next serial will be …-001.");
+  }
+}
 
-                // Optional: document.getElementById("tbody").innerHTML = "";
+// ── Document type change ───────────────────────────────────
+function onTypeChange() {
+  const type = document.getElementById("docType").value;
+  document.getElementById("docTitle").textContent = type;
+  document.getElementById("docLabel").textContent =
+    type === "PROFORMA INVOICE" ? "PI No:" : "Quotation No:";
+  updateSerialPreview();
+}
 
-                rows.forEach(rowData => {
-                    const name = rowData["Name"] || "";
-                    const cas = rowData["CAS No."] || "";
-                    const pack = rowData["Quantity"] || "";
-                    let rawPrice = rowData["Price"] ? String(rowData["Price"]).split('/')[0] : "0";
-                    let rate = parseFloat(rawPrice.replace(/[^0-9.]/g, '')) || 0;
+// Initialise preview on load
+updateSerialPreview();
 
-                    let tr = document.createElement("tr");
-                    tr.innerHTML = `
-                        <td><textarea class="i_name" oninput="autoExpand(this); calc()">${name}</textarea></td>
-                        <td><textarea class="i_cas" oninput="autoExpand(this)">${cas}</textarea></td>
-                        <td><textarea class="i_pack" oninput="autoExpand(this)">${pack}</textarea></td>
-                        <td><input type="number" class="i_qty num-input" value="1" oninput="calc()"></td>
-                        <td><input class="num-input" value="Nos"></td>
-                        <td><input type="number" class="i_rate num-input" value="${rate}" oninput="calc()"></td>
-                        <td><input type="number" class="i_gst num-input" value="18" oninput="calc()"></td>
-                        <td><span class="i_total">0.00</span></td>
-                    `;
-                    document.getElementById("tbody").appendChild(tr);
-                    tr.querySelectorAll('textarea').forEach(ta => autoExpand(ta));
-                });
-                calc();
-            };
-            reader.readAsArrayBuffer(file);
-        });
-    </script>
+// ── Google Sheets URL persistence ─────────────────────────
+(function loadSheetsUrl() {
+  const saved = localStorage.getItem("svt_sheets_url") || "";
+  document.getElementById("sheetsUrl").value = saved;
+})();
+
+function saveSheetsUrl() {
+  localStorage.setItem("svt_sheets_url", document.getElementById("sheetsUrl").value.trim());
+}
+
+// ── GST calc ──────────────────────────────────────────────
+function calc() {
+  let sub = 0, totalGst = 0;
+  const isUP = document.getElementById("clientState").value === "09";
+
+  document.querySelectorAll("#tbody tr").forEach(row => {
+    const qty  = Math.max(0, parseFloat(row.querySelector(".i_qty").value)  || 0);
+    const rate = Math.max(0, parseFloat(row.querySelector(".i_rate").value) || 0);
+    const gst  = Math.max(0, parseFloat(row.querySelector(".i_gst").value)  || 0);
+    const base = qty * rate;
+    const gstAmt = base * (gst / 100);
+    const total  = base + gstAmt;
+
+    row.querySelector(".i_total_base").textContent = `Base: ₹${base.toFixed(2)}`;
+    row.querySelector(".i_total_gst").textContent  = `GST: ₹${gstAmt.toFixed(2)}`;
+    row.querySelector(".i_total_amt").textContent  = `₹${total.toFixed(2)}`;
+
+    sub      += base;
+    totalGst += gstAmt;
+  });
+
+  const grandExact = sub + totalGst;
+  const rounded    = Math.round(grandExact);
+  const roundOff   = rounded - grandExact;
+
+  document.getElementById("sub").textContent   = sub.toFixed(2);
+  document.getElementById("round").textContent = roundOff.toFixed(2);
+  document.getElementById("grand").textContent = rounded.toFixed(2);
+  document.getElementById("words").textContent = numberToWords(rounded);
+
+  document.getElementById("p_tax_container").innerHTML = isUP
+    ? `<p>CGST: ₹ ${(totalGst/2).toFixed(2)}</p><p>SGST: ₹ ${(totalGst/2).toFixed(2)}</p>`
+    : `<p>IGST: ₹ ${totalGst.toFixed(2)}</p>`;
+}
+
+// ── Add/remove rows ────────────────────────────────────────
+function addRow(data = {}) {
+  const tr = document.createElement("tr");
+  tr.innerHTML = `
+    <td><textarea class="i_name" oninput="autoExpand(this)" placeholder="Item name">${data.name||""}</textarea></td>
+    <td><textarea class="i_cas"  oninput="autoExpand(this)" placeholder="CAS No">${data.cas||""}</textarea></td>
+    <td><textarea class="i_pack" oninput="autoExpand(this)" placeholder="Pack">${data.pack||""}</textarea></td>
+    <td><input type="number" class="i_qty"  min="0" value="${data.qty||1}"  oninput="calc()"></td>
+    <td><input type="text"   class="i_unit" value="${data.unit||'kg'}"></td>
+    <td><input type="number" class="i_rate" min="0" value="${data.rate||0}" oninput="calc()"></td>
+    <td><input type="number" class="i_gst"  min="0" value="${data.gst||18}" oninput="calc()"></td>
+    <td>
+      <div class="i_total_wrap">
+        <div class="i_total_base">Base: ₹0.00</div>
+        <div class="i_total_gst">GST: ₹0.00</div>
+        <div class="i_total_amt">₹0.00</div>
+      </div>
+    </td>
+    <td class="del-col"><button class="del-btn" onclick="delRow(this)" title="Remove row">✕</button></td>
+  `;
+  document.getElementById("tbody").appendChild(tr);
+  calc();
+}
+
+function delRow(btn) {
+  btn.closest("tr").remove();
+  calc();
+}
+
+// ── Excel import ───────────────────────────────────────────
+// Expected columns: Item Description | CAS No | Pack | Qty | Unit | Rate | GST%
+function importExcel(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const wb   = XLSX.read(e.target.result, { type: "binary" });
+    const ws   = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
+    if (rows.length < 2) { alert("No data rows found in the Excel file."); return; }
+
+    // Detect header row (first row) and skip it
+    const dataRows = rows.slice(1);
+    let added = 0;
+    dataRows.forEach(r => {
+      if (!r[0] && !r[5]) return; // skip blank rows
+      addRow({
+        name: r[0] || "",
+        cas:  r[1] || "",
+        pack: r[2] || "",
+        qty:  r[3] || 1,
+        unit: r[4] || "kg",
+        rate: r[5] || 0,
+        gst:  r[6] || 18
+      });
+      added++;
+    });
+    alert(`✅ ${added} item(s) imported successfully.`);
+    input.value = ""; // reset file input
+  };
+  reader.readAsBinaryString(file);
+}
+
+// ── Number to words (Indian) ───────────────────────────────
+function numberToWords(num) {
+  const ones = ["","One","Two","Three","Four","Five","Six","Seven","Eight","Nine","Ten",
+    "Eleven","Twelve","Thirteen","Fourteen","Fifteen","Sixteen","Seventeen","Eighteen","Nineteen"];
+  const tens = ["","","Twenty","Thirty","Forty","Fifty","Sixty","Seventy","Eighty","Ninety"];
+  function convert(n) {
+    if (n === 0) return "";
+    if (n < 20)  return ones[n];
+    if (n < 100) return tens[Math.floor(n/10)] + (n%10 ? " " + ones[n%10] : "");
+    if (n < 1000) return ones[Math.floor(n/100)] + " Hundred" + (n%100 ? " " + convert(n%100) : "");
+    if (n < 100000) return convert(Math.floor(n/1000)) + " Thousand" + (n%1000 ? " " + convert(n%1000) : "");
+    if (n < 10000000) return convert(Math.floor(n/100000)) + " Lakh" + (n%100000 ? " " + convert(n%100000) : "");
+    return convert(Math.floor(n/10000000)) + " Crore" + (n%10000000 ? " " + convert(n%10000000) : "");
+  }
+  return num > 0 ? convert(num) + " Rupees Only" : "Zero Rupees Only";
+}
+
+// ── Confirm → generate PDF + sync ─────────────────────────
+function confirmAndGenerate() {
+  const serial = peekNextSerial();
+  const grand  = document.getElementById("grand").textContent;
+  const rows   = document.querySelectorAll("#tbody tr").length;
+
+  if (rows === 0) { alert("Please add at least one item before generating."); return; }
+
+  const ok = confirm(
+    `Generate ${document.getElementById("docType").value}?\n\n` +
+    `Serial: ${serial}\n` +
+    `Items: ${rows}\n` +
+    `Grand Total: ₹${grand}\n\n` +
+    `This will consume serial number ${serial}.`
+  );
+  if (!ok) return;
+
+  const assignedSerial = consumeSerial();
+  document.getElementById("qno").value = assignedSerial;
+  updateSerialPreview();
+
+  generatePDF(assignedSerial);
+}
+
+// ── PDF generation (pdfmake — text is selectable) ─────────
+function generatePDF(serial) {
+  const btn = document.getElementById("dlBtn");
+  btn.disabled = true;
+  btn.textContent = "Generating PDF…";
+
+  const type    = document.getElementById("docType").value;
+  const date    = document.getElementById("today").value;
+  const place   = document.getElementById("place").value;
+  const mode    = document.getElementById("mode").value;
+  const billed  = document.getElementById("billed").value;
+  const shipped = document.getElementById("shipped").value;
+  const isUP    = document.getElementById("clientState").value === "09";
+
+  const sub     = document.getElementById("sub").textContent;
+  const round   = document.getElementById("round").textContent;
+  const grand   = document.getElementById("grand").textContent;
+  const words   = document.getElementById("words").textContent;
+
+  // Tax lines
+  let taxLines = [];
+  if (isUP) {
+    const half = (parseFloat(sub) * 0).toFixed(2); // already computed
+    document.querySelectorAll("#p_tax_container p").forEach(p => taxLines.push(p.textContent));
+  } else {
+    document.querySelectorAll("#p_tax_container p").forEach(p => taxLines.push(p.textContent));
+  }
+
+  // Build item rows for table
+  const headerRow = [
+    { text: "#",                style: "th" },
+    { text: "Item Description", style: "th" },
+    { text: "CAS No",           style: "th" },
+    { text: "Pack",             style: "th" },
+    { text: "Qty",              style: "th" },
+    { text: "Unit",             style: "th" },
+    { text: "Rate (₹)",         style: "th" },
+    { text: "GST%",             style: "th" },
+    { text: "Base (₹)",         style: "th" },
+    { text: "GST Amt (₹)",      style: "th" },
+    { text: "Total (₹)",        style: "th" },
+  ];
+
+  const itemRows = [];
+  let sno = 1;
+  let totalGstAmt = 0;
+  let itemsSummary = []; // for sheets sync
+
+  document.querySelectorAll("#tbody tr").forEach(row => {
+    const qty  = parseFloat(row.querySelector(".i_qty").value)  || 0;
+    const rate = parseFloat(row.querySelector(".i_rate").value) || 0;
+    const gst  = parseFloat(row.querySelector(".i_gst").value)  || 0;
+    const name = row.querySelector(".i_name").value;
+    const cas  = row.querySelector(".i_cas").value;
+    const pack = row.querySelector(".i_pack").value;
+    const unit = row.querySelector(".i_unit").value;
+    const base = qty * rate;
+    const gstA = base * (gst / 100);
+    totalGstAmt += gstA;
+    itemsSummary.push(`${name} x${qty}`);
+
+    itemRows.push([
+      { text: sno++,             style: "td", alignment: "center" },
+      { text: name,              style: "td" },
+      { text: cas,               style: "td", alignment: "center" },
+      { text: pack,              style: "td", alignment: "center" },
+      { text: qty,               style: "td", alignment: "center" },
+      { text: unit,              style: "td", alignment: "center" },
+      { text: rate.toFixed(2),   style: "td", alignment: "right"  },
+      { text: gst + "%",         style: "td", alignment: "center" },
+      { text: base.toFixed(2),   style: "td", alignment: "right"  },
+      { text: gstA.toFixed(2),   style: "td", alignment: "right"  },
+      { text: (base+gstA).toFixed(2), style: "td", alignment: "right" },
+    ]);
+  });
+
+  // Tax text block
+  let taxText = "";
+  if (isUP) {
+    taxText = `CGST: ₹${(totalGstAmt/2).toFixed(2)}     SGST: ₹${(totalGstAmt/2).toFixed(2)}`;
+  } else {
+    taxText = `IGST: ₹${totalGstAmt.toFixed(2)}`;
+  }
+
+  const docDefinition = {
+    pageSize: "A4",
+    pageMargins: [28, 20, 28, 20],
+
+    styles: {
+      h1:   { fontSize: 16, bold: true, alignment: "center" },
+      h2:   { fontSize: 10, alignment: "center", color: "#444" },
+      docT: { fontSize: 14, bold: true, alignment: "center", decoration: "underline", margin: [0,6,0,6] },
+      th:   { fontSize: 8, bold: true, fillColor: "#f2f2f2", alignment: "center" },
+      td:   { fontSize: 8 },
+      label:{ fontSize: 9, bold: true },
+      val:  { fontSize: 9 },
+      small:{ fontSize: 8, color: "#444" },
+      totR: { fontSize: 9, alignment: "right" },
+      grand:{ fontSize: 12, bold: true, alignment: "right" },
+    },
+
+    content: [
+      // ── Header ──
+      { text: "SIDDHI VINAYAK TRADERS", style: "h1" },
+      { text: "12/306, Arya Nagar, Firozabad, UP – 283203", style: "h2" },
+      { text: "GSTIN: 09BFZPK4340C2Z7  |  +91 9286107722  |  svtjp11@gmail.com", style: "h2" },
+      { canvas: [{ type: "line", x1: 0, y1: 4, x2: 539, y2: 4, lineWidth: 1.5 }] },
+
+      // ── Doc title ──
+      { text: type, style: "docT" },
+
+      // ── Info row ──
+      {
+        columns: [
+          {
+            width: "50%",
+            table: { widths: ["40%","60%"], body: [
+              [{ text: (type==="PROFORMA INVOICE"?"PI No:":"Quotation No:"), style:"label" }, { text: serial, style:"val", bold:true }],
+              [{ text: "Date:",           style:"label" }, { text: date,  style:"val" }],
+            ]},
+            layout: "lightHorizontalLines"
+          },
+          { width: 10, text: "" },
+          {
+            width: "50%",
+            table: { widths: ["40%","60%"], body: [
+              [{ text: "Place (City):", style:"label" }, { text: place, style:"val" }],
+              [{ text: "Mode:",         style:"label" }, { text: mode,  style:"val" }],
+            ]},
+            layout: "lightHorizontalLines"
+          },
+        ],
+        margin: [0, 4, 0, 8]
+      },
+
+      // ── Address ──
+      {
+        columns: [
+          {
+            width: "50%",
+            table: { widths: ["100%"], body: [
+              [{ text: "Billed To:", style:"label" }],
+              [{ text: billed, style:"val", fontSize:9 }],
+            ]},
+            layout: { hLineWidth:()=>0.5, vLineWidth:()=>0.5 }
+          },
+          { width: 8, text: "" },
+          {
+            width: "50%",
+            table: { widths: ["100%"], body: [
+              [{ text: "Shipped To:", style:"label" }],
+              [{ text: shipped, style:"val", fontSize:9 }],
+            ]},
+            layout: { hLineWidth:()=>0.5, vLineWidth:()=>0.5 }
+          },
+        ],
+        margin: [0, 0, 0, 10]
+      },
+
+      // ── Items table ──
+      {
+        table: {
+          headerRows: 1,
+          widths: [14, "*", 52, 36, 22, 22, 36, 24, 38, 38, 38],
+          body: [headerRow, ...itemRows]
+        },
+        layout: {
+          hLineWidth: () => 0.5,
+          vLineWidth: () => 0.5,
+          hLineColor: () => "#000",
+          vLineColor: () => "#000",
+        },
+        margin: [0, 0, 0, 10]
+      },
+
+      // ── Totals ──
+      { text: `Subtotal: ₹${sub}`, style: "totR" },
+      { text: taxText,             style: "totR" },
+      { text: `Round Off: ₹${round}`, style: "totR" },
+      { canvas: [{ type: "line", x1: 300, y1: 3, x2: 539, y2: 3, lineWidth: 0.8 }] },
+      { text: `Grand Total: ₹${grand}`, style: "grand", margin: [0,2,0,2] },
+      { text: `Amount in Words: ${words}`, style: "small", margin: [0,0,0,10] },
+
+      // ── Bank + T&C ──
+      {
+        columns: [
+          {
+            width: "45%",
+            table: { widths:["100%"], body: [
+              [{ text: "Bank Details:", style:"label" }],
+              [{ text: "Bank: UNION BANK OF INDIA\nA/C No.: 424301010040874\nIFSC: UBIN0542431", style:"small" }],
+            ]},
+            layout: { hLineWidth:()=>0.5, vLineWidth:()=>0.5 }
+          },
+          { width: 6, text: "" },
+          {
+            width: "*",
+            table: { widths:["100%"], body: [
+              [{ text: "Terms & Conditions:", style:"label" }],
+              [{ text:
+                "1. Check complete specifications before placing a confirmed purchase order.\n" +
+                "2. GST % & HSN Code subject to change per Government notification.\n" +
+                "3. Payment 100% advance by Cheque / RTGS / NEFT.\n" +
+                "4. Price validity: 7 days unless otherwise specified.\n" +
+                "5. Stock details subject to change without notice.\n" +
+                "6. Goods once sold will not be taken back.\n" +
+                "7. Items are not for medicinal or direct human consumption.",
+                style:"small"
+              }],
+            ]},
+            layout: { hLineWidth:()=>0.5, vLineWidth:()=>0.5 }
+          },
+        ],
+        margin: [0, 0, 0, 30]
+      },
+
+      // ── Footer ──
+      {
+        columns: [
+          { text: "Receiver's Signature\n\n____________________", fontSize: 10 },
+          { text: "For Siddhi Vinayak Traders\n\nAuthorised Signatory", fontSize: 10, alignment: "right" },
+        ]
+      },
+    ]
+  };
+
+  pdfMake.createPdf(docDefinition).download(`${serial}.pdf`, function() {
+    btn.disabled = false;
+    btn.textContent = "⬇ Download PDF & Sync Sheet";
+    syncToSheets(serial, type, date, place, mode, billed, shipped,
+                 itemsSummary.join("; "), parseFloat(sub), totalGstAmt, parseFloat(grand));
+  });
+}
+
+// ── Google Sheets sync ─────────────────────────────────────
+async function syncToSheets(docNo, docType, date, place, mode, billedTo, shippedTo,
+                             itemsSummary, subtotal, gst, grandTotal) {
+  const url = (localStorage.getItem("svt_sheets_url") || "").trim();
+  const status = document.getElementById("syncStatus");
+
+  if (!url) {
+    status.className = "sync-status err";
+    status.textContent = "⚠ Sheets URL not configured. PDF saved locally.";
+    return;
+  }
+
+  status.className = "sync-status loading";
+  status.textContent = "Syncing to Google Sheets…";
+
+  const payload = { docNo, docType, date, place, mode, billedTo, shippedTo,
+                    itemsSummary, subtotal, gst, grandTotal };
+  try {
+    const resp = await fetch(url, {
+      method: "POST",
+      mode: "no-cors",        // Apps Script requires no-cors from external origins
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    // no-cors → response is opaque, so we assume success if no network error
+    status.className = "sync-status ok";
+    status.textContent = `✅ Synced to Google Sheets: ${docNo}`;
+  } catch (err) {
+    status.className = "sync-status err";
+    status.textContent = `❌ Sync failed: ${err.message}`;
+  }
+
+  setTimeout(() => { status.className = "sync-status"; }, 6000);
+}
+
+// ── Init: load saved URL ──────────────────────────────────
+document.getElementById("sheetsUrl").value = localStorage.getItem("svt_sheets_url") || "";
+</script>
 </body>
 </html>
