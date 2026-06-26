@@ -288,11 +288,22 @@ table.item-table td textarea { text-align: left; }
   <!-- PO only -->
   <div class="field-group po-only">
     <label>Delivery Location</label>
-    <input type="text" id="poDeliveryLoc" placeholder="e.g. Firozabad Godown" oninput="syncPOFields()">
+    <select id="poDeliveryLoc" onchange="syncPOFields()">
+      <option value="Firozabad Godown">Firozabad Godown</option>
+      <option value="12/306, Arya Nagar, Firozabad">Arya Nagar, Firozabad</option>
+      <option value="As per Order">As per Order</option>
+    </select>
   </div>
   <div class="field-group po-only">
     <label>Payment Terms</label>
-    <input type="text" id="poPaymentTerms" placeholder="e.g. 30 days credit" oninput="syncPOFields()">
+    <select id="poPaymentTerms" onchange="syncPOFields()">
+      <option value="100% Advance">100% Advance</option>
+      <option value="Against Delivery">Against Delivery</option>
+      <option value="15 Days Credit">15 Days Credit</option>
+      <option value="30 Days Credit">30 Days Credit</option>
+      <option value="45 Days Credit">45 Days Credit</option>
+      <option value="60 Days Credit">60 Days Credit</option>
+    </select>
   </div>
   <div class="field-group po-only">
     <label>Required By Date</label>
@@ -338,14 +349,33 @@ table.item-table td textarea { text-align: left; }
       <td><b id="row2col1">Place (City):</b></td>
       <td><input id="place" placeholder="City"></td>
       <td><b>Mode:</b></td>
-      <td><input id="mode" value="Courier"></td>
+      <td>
+        <select id="mode" style="width:100%;border:none;outline:none;background:transparent;font-size:10.5px;font-family:inherit;padding:2px 0;">
+          <option value="Courier">Courier</option>
+          <option value="Speed Post">Speed Post</option>
+          <option value="Hand Delivery">Hand Delivery</option>
+          <option value="Transport">Transport</option>
+          <option value="By Air">By Air</option>
+          <option value="By Road">By Road</option>
+        </select>
+      </td>
     </tr>
     <!-- PO extra row, hidden by default -->
     <tr id="poExtraRow" style="display:none;">
       <td><b>Required By:</b></td>
       <td><input id="poReqDisplay" placeholder="dd-Mon-YYYY" readonly></td>
       <td><b>Payment:</b></td>
-      <td><input id="poPayDisplay" placeholder="e.g. 30 days" readonly></td>
+      <td>
+        <select id="poPayDisplay" style="width:100%;border:none;outline:none;background:transparent;font-size:10.5px;font-family:inherit;padding:2px 0;">
+          <option value="">-- Select --</option>
+          <option value="100% Advance">100% Advance</option>
+          <option value="Against Delivery">Against Delivery</option>
+          <option value="15 Days Credit">15 Days Credit</option>
+          <option value="30 Days Credit">30 Days Credit</option>
+          <option value="45 Days Credit">45 Days Credit</option>
+          <option value="60 Days Credit">60 Days Credit</option>
+        </select>
+      </td>
     </tr>
   </table>
 
@@ -451,8 +481,8 @@ document.getElementById("billed").addEventListener("input", function() {
 // ─────────────────────────────────────────────
 function syncPOFields() {
   document.getElementById("poReqDisplay").value = document.getElementById("poRequiredBy").value;
-  document.getElementById("poPayDisplay").value = document.getElementById("poPaymentTerms").value;
-  document.getElementById("place").value        = document.getElementById("poDeliveryLoc").value;
+  document.getElementById("poPayDisplay").value  = document.getElementById("poPaymentTerms").value;
+  document.getElementById("place").value         = document.getElementById("poDeliveryLoc").value;
 }
 
 // ─────────────────────────────────────────────
@@ -570,6 +600,7 @@ function onTypeChange() {
       "Siddhi Vinayak Traders\n12/306, Arya Nagar, Firozabad, UP – 283203\nGSTIN: 09BFZPK4340C2Z7";
     autoExpand(document.getElementById("shipped"));
     document.getElementById("billed").placeholder  = "Vendor Name\nAddress\nGSTIN";
+    syncPOFields(); // pre-populate place from delivery location select
   } else {
     // Clear SVT prefill if switching away from PO
     const sh = document.getElementById("shipped");
@@ -598,7 +629,7 @@ function calc() {
     const qty  = Math.max(0, parseFloat(row.querySelector(".i_qty").value)  || 0);
     const rate = Math.max(0, parseFloat(row.querySelector(".i_rate").value) || 0);
     const gstV = row.querySelector(".i_gst").value;
-    const gst  = _isPO ? 0 : Math.max(0, parseFloat(gstV) || 0);
+    const gst  = _isPO ? 0 : Math.max(0, parseFloat(row.querySelector(".i_gst").value) || 0);
     const base = qty * rate;
     const gstA = base * (gst/100);
 
@@ -633,16 +664,27 @@ function calc() {
 // ─────────────────────────────────────────────
 function addRow(data = {}) {
   const tr = document.createElement("tr");
+  const unitVal = data.unit || "kg";
+  const gstVal  = data.gst  || (isPO() ? "" : "18");
+
+  const unitCell = `<td>
+    <select class="i_unit" style="width:100%;border:none;outline:none;background:transparent;font-size:10px;font-family:inherit;text-align:center;">
+      ${["kg","g","mg","L","mL","Nos","Box","Pcs","Set","Pair","mtr"].map(u=>`<option value="${u}"${u===unitVal?" selected":""}>${u}</option>`).join("")}
+    </select></td>`;
+
   const gstCell = isPO()
-    ? `<td><input type="text"   class="i_gst" value="${data.gst||""}" placeholder="HSN"></td>`
-    : `<td><input type="number" class="i_gst" min="0" value="${data.gst||18}" oninput="calc()"></td>`;
+    ? `<td><input type="text" class="i_gst" value="${gstVal}" placeholder="HSN" style="width:100%;border:none;outline:none;background:transparent;font-size:10px;font-family:inherit;padding:6px 3px;text-align:center;box-sizing:border-box;"></td>`
+    : `<td>
+        <select class="i_gst" onchange="calc()" style="width:100%;border:none;outline:none;background:transparent;font-size:10px;font-family:inherit;text-align:center;">
+          ${["0","5","12","18","28"].map(g=>`<option value="${g}"${g===String(gstVal)?" selected":""}>${g}%</option>`).join("")}
+        </select></td>`;
 
   tr.innerHTML = `
     <td><textarea class="i_name" oninput="autoExpand(this)" placeholder="Item name">${data.name||""}</textarea></td>
     <td><textarea class="i_cas"  oninput="autoExpand(this)" placeholder="CAS No">${data.cas||""}</textarea></td>
     <td><textarea class="i_pack" oninput="autoExpand(this)" placeholder="Pack">${data.pack||""}</textarea></td>
     <td><input type="number" class="i_qty"  min="0" value="${data.qty||1}"  oninput="calc()"></td>
-    <td><input type="text"   class="i_unit" value="${data.unit||'kg'}"></td>
+    ${unitCell}
     <td><input type="number" class="i_rate" min="0" value="${data.rate||0}" oninput="calc()"></td>
     ${gstCell}
     <td>
@@ -737,7 +779,7 @@ function generatePDF(serial) {
   const billed  = document.getElementById("billed").value;
   const shipped = document.getElementById("shipped").value;
   const reqBy   = document.getElementById("poRequiredBy").value;
-  const payTerm = document.getElementById("poPaymentTerms").value;
+  const payTerm = document.getElementById("poPayDisplay").value;
   const _isPO   = isPO(), _isUP = isUP();
   const sub     = document.getElementById("sub").textContent;
   const round   = document.getElementById("round").textContent;
@@ -771,12 +813,12 @@ function generatePDF(serial) {
   document.querySelectorAll("#tbody tr").forEach(row=>{
     const qty  = parseFloat(row.querySelector(".i_qty").value)||0;
     const rate = parseFloat(row.querySelector(".i_rate").value)||0;
-    const gstV = row.querySelector(".i_gst").value;
+    const gstV = row.querySelector(".i_gst").value;  // "0","5","12","18","28" or HSN text
     const gst  = _isPO ? 0 : (parseFloat(gstV)||0);
     const name = row.querySelector(".i_name").value;
     const cas  = row.querySelector(".i_cas").value;
     const pack = row.querySelector(".i_pack").value;
-    const unit = row.querySelector(".i_unit").value;
+    const unit = row.querySelector(".i_unit").value;  // select value
     const base = qty*rate, gstA=base*(gst/100);
     totalGstAmt+=gstA; summary.push(`${name} x${qty}`);
     if (_isPO) {
@@ -897,9 +939,20 @@ function generatePDF(serial) {
     ]
   };
 
-  pdfMake.createPdf(dd).download(`${serial}.pdf`, function() {
-    btn.disabled=false; btn.textContent="⬇ Download PDF & Sync Sheet";
-    syncToSheets(serial,type,date,place,mode,billed,shipped,
+  pdfMake.createPdf(dd).getBlob(function(blob) {
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = blobUrl;
+    a.download = serial + ".pdf";
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function() {
+      document.body.removeChild(a);
+      URL.revokeObjectURL(blobUrl);
+    }, 1000);
+    btn.disabled = false;
+    btn.textContent = "⬇ Download PDF & Sync Sheet";
+    syncToSheets(serial, type, date, place, mode, billed, shipped,
       summary.join("; "), parseFloat(sub), totalGstAmt, parseFloat(grand));
   });
 }
