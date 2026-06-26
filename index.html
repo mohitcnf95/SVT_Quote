@@ -3,21 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SVT Document System</title>
+<title>SVT Document System v2</title>
 
-<!-- pdfmake (selectable text PDFs) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
-
-<!-- flatpickr date picker -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-
-<!-- SheetJS for Excel import -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
 <style>
-/* ── Reset & Base ── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
@@ -27,6 +21,7 @@
   --surface: #ffffff;
   --bg:      #f0f2f5;
   --accent:  #1877f2;
+  --accent2: #6d4c41;
   --danger:  #e53935;
   --success: #2e7d32;
   --radius:  10px;
@@ -60,7 +55,6 @@ body {
   flex-direction: column;
   gap: 14px;
 }
-
 .panel-title {
   font-size: 15px;
   font-weight: 700;
@@ -70,293 +64,155 @@ body {
   padding-bottom: 10px;
 }
 
-.field-group { display: flex; flex-direction: column; gap: 5px; }
-.field-group label { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+/* PO mode panel accent */
+body.po-mode .panel         { border-top: 3px solid var(--accent2); }
+body.po-mode .panel-title   { color: var(--accent2); border-bottom-color: var(--accent2); }
 
+.field-group { display: flex; flex-direction: column; gap: 5px; }
+.field-group label {
+  font-size: 11px; font-weight: 700; color: var(--muted);
+  text-transform: uppercase; letter-spacing: .5px;
+}
 .field-group select,
 .field-group input[type="text"],
 .field-group input[type="file"] {
-  width: 100%;
-  padding: 10px 12px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  font-size: 13px;
-  color: var(--ink);
-  background: var(--surface);
+  width: 100%; padding: 10px 12px;
+  border: 1px solid var(--border); border-radius: 8px;
+  font-size: 13px; color: var(--ink); background: var(--surface);
   transition: border-color .2s;
 }
 .field-group select:focus,
 .field-group input[type="text"]:focus { outline: none; border-color: var(--accent); }
 
-.serial-display {
-  background: #eef3fc;
-  border: 1px dashed var(--accent);
-  border-radius: 8px;
-  padding: 10px 14px;
-  font-size: 13px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-.serial-display span { font-weight: 700; color: var(--accent); font-size: 15px; letter-spacing: .5px; }
-.serial-display button {
-  font-size: 11px;
-  background: none;
-  border: 1px solid var(--accent);
-  color: var(--accent);
-  border-radius: 6px;
-  padding: 4px 10px;
-  cursor: pointer;
-}
+/* Show/hide panel rows */
+.po-only  { display: none !important; }         /* hidden by default */
+.qt-only  { display: flex !important; }          /* visible by default */
+body.po-mode .po-only { display: flex !important; }
+body.po-mode .qt-only { display: none !important; }
 
-.sync-status {
-  font-size: 11px;
-  padding: 6px 10px;
-  border-radius: 6px;
-  display: none;
+.serial-display {
+  background: #eef3fc; border: 1px dashed var(--accent);
+  border-radius: 8px; padding: 10px 14px; font-size: 13px;
+  display: flex; justify-content: space-between; align-items: center;
 }
-.sync-status.ok  { background: #e8f5e9; color: var(--success); display: block; }
-.sync-status.err { background: #ffebee; color: var(--danger);  display: block; }
-.sync-status.loading { background: #fff8e1; color: #f57f17; display: block; }
+body.po-mode .serial-display { background: #efebe9; border-color: var(--accent2); }
+.serial-display span { font-weight: 700; color: var(--accent); font-size: 15px; letter-spacing: .5px; }
+body.po-mode .serial-display span { color: var(--accent2); }
+.serial-display button {
+  font-size: 11px; background: none;
+  border: 1px solid var(--accent); color: var(--accent);
+  border-radius: 6px; padding: 4px 10px; cursor: pointer;
+}
+body.po-mode .serial-display button { border-color: var(--accent2); color: var(--accent2); }
+
+.sync-status { font-size: 11px; padding: 6px 10px; border-radius: 6px; display: none; }
+.sync-status.ok      { background: #e8f5e9; color: var(--success); display: block; }
+.sync-status.err     { background: #ffebee; color: var(--danger);  display: block; }
+.sync-status.loading { background: #fff8e1; color: #f57f17;        display: block; }
 
 .btn {
-  width: 100%;
-  padding: 12px;
-  border: none;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: opacity .2s, transform .1s;
-  letter-spacing: .3px;
+  width: 100%; padding: 12px; border: none; border-radius: 8px;
+  font-size: 14px; font-weight: 700; cursor: pointer;
+  transition: opacity .2s, transform .1s; letter-spacing: .3px;
 }
-.btn:active { transform: scale(.98); }
+.btn:active   { transform: scale(.98); }
 .btn:disabled { opacity: .5; cursor: not-allowed; }
-
 .btn-add { background: #eef3fc; color: var(--accent); }
+body.po-mode .btn-add { background: #efebe9; color: var(--accent2); }
 .btn-dl  { background: var(--ink); color: #fff; }
 .btn-dl:hover:not(:disabled) { background: #2d3033; }
 
-/* ── Preview Container ── */
-.preview-wrap {
-  overflow-x: auto;
-  padding-bottom: 24px;
-}
+/* ── Preview ── */
+.preview-wrap { overflow-x: auto; padding-bottom: 24px; }
 
-/* ── A4 Document ── */
 #quote {
-  width: 210mm;
-  min-height: 296mm;
-  background: #fff;
-  padding: 14mm 15mm;
-  color: #000;
+  width: 210mm; min-height: 296mm; background: #fff;
+  padding: 14mm 15mm; color: #000;
   box-shadow: 0 4px 24px rgba(0,0,0,0.13);
   margin: 0 auto;
-  font-family: 'Segoe UI', Arial, sans-serif;
-  font-size: 11px;
-  position: relative;
+  font-family: 'Segoe UI', Arial, sans-serif; font-size: 11px; position: relative;
 }
-
-/* Header */
-.p-header {
-  text-align: center;
-  border-bottom: 2px solid #000;
-  padding-bottom: 8px;
-  margin-bottom: 12px;
-}
+.p-header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 8px; margin-bottom: 12px; }
 .p-header h2 { font-size: 18px; margin-bottom: 3px; }
 .p-header p  { font-size: 10px; margin: 2px 0; color: #333; }
 
-/* Document title */
 .doc-title {
-  text-align: center;
-  font-size: 15px;
-  font-weight: 700;
-  text-decoration: underline;
-  margin: 8px 0 10px;
-  letter-spacing: 1px;
+  text-align: center; font-size: 15px; font-weight: 700;
+  text-decoration: underline; margin: 8px 0 10px; letter-spacing: 1px;
 }
-
-/* Info table */
-.p-info-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-bottom: 10px;
-}
-.p-info-table td {
-  border: 1px solid #000;
-  padding: 5px 7px;
-  font-size: 10.5px;
-  vertical-align: middle;
-}
+.p-info-table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+.p-info-table td { border: 1px solid #000; padding: 5px 7px; font-size: 10.5px; vertical-align: middle; }
 .p-info-table td b { white-space: nowrap; }
 .p-info-table input {
-  width: 100%;
-  border: none;
-  outline: none;
-  background: transparent;
-  font-size: 10.5px;
-  font-family: inherit;
+  width: 100%; border: none; outline: none;
+  background: transparent; font-size: 10.5px; font-family: inherit;
 }
-
-/* Address boxes */
-.p-address-row {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 12px;
-}
+.p-address-row { display: flex; gap: 12px; margin-bottom: 12px; }
 .p-address-box {
-  flex: 1;
-  border: 1px solid #000;
-  padding: 7px;
-  min-height: 90px;
-  font-size: 10.5px;
-  position: relative;
+  flex: 1; border: 1px solid #000; padding: 7px;
+  min-height: 90px; font-size: 10.5px; position: relative;
 }
 .p-address-box b { display: block; margin-bottom: 3px; }
 .p-address-box textarea {
-  width: 100%;
-  min-height: 65px;
-  resize: none;
-  border: none;
-  outline: none;
-  font-family: inherit;
-  font-size: 10.5px;
-  line-height: 1.45;
-  background: transparent;
-  white-space: pre-wrap;
-  word-wrap: break-word;
-  overflow: hidden;
+  width: 100%; min-height: 65px; resize: none; border: none; outline: none;
+  font-family: inherit; font-size: 10.5px; line-height: 1.45;
+  background: transparent; white-space: pre-wrap; word-wrap: break-word; overflow: hidden;
 }
 .same-check {
-  position: absolute;
-  top: 6px; right: 7px;
-  font-size: 9.5px;
-  color: var(--muted);
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  cursor: pointer;
+  position: absolute; top: 6px; right: 7px; font-size: 9.5px;
+  color: var(--muted); display: flex; align-items: center; gap: 4px; cursor: pointer;
 }
 .same-check input { cursor: pointer; }
 
-/* Item table */
-table.item-table {
-  width: 100%;
-  border-collapse: collapse;
-  table-layout: fixed;
-  margin-top: 8px;
-}
+table.item-table { width: 100%; border-collapse: collapse; table-layout: fixed; margin-top: 8px; }
 table.item-table th,
-table.item-table td {
-  border: 1px solid #000;
-  padding: 0;
-  font-size: 10.5px;
-  vertical-align: top;
-}
+table.item-table td { border: 1px solid #000; padding: 0; font-size: 10.5px; vertical-align: top; }
 table.item-table th {
-  background: #f2f2f2;
-  padding: 7px 5px;
-  font-weight: 700;
-  text-align: center;
-  vertical-align: middle;
-  font-size: 10px;
+  background: #f2f2f2; padding: 7px 5px; font-weight: 700;
+  text-align: center; vertical-align: middle; font-size: 10px;
 }
 table.item-table td textarea,
 table.item-table td input[type="number"],
 table.item-table td input[type="text"] {
-  width: 100%;
-  border: none;
-  outline: none;
-  background: transparent;
-  font-family: inherit;
-  font-size: 10.5px;
-  padding: 6px 5px;
-  resize: none;
-  display: block;
-  overflow: hidden;
-  white-space: pre-wrap;
-  word-wrap: break-word;
-  text-align: center;
-  box-sizing: border-box;
+  width: 100%; border: none; outline: none; background: transparent;
+  font-family: inherit; font-size: 10.5px; padding: 6px 5px;
+  resize: none; display: block; overflow: hidden;
+  white-space: pre-wrap; word-wrap: break-word; text-align: center; box-sizing: border-box;
 }
 table.item-table td textarea { text-align: left; }
 
-.i_total_wrap {
-  padding: 5px 4px;
-  text-align: center;
-  line-height: 1.5;
-}
+.i_total_wrap { padding: 5px 4px; text-align: center; line-height: 1.5; }
 .i_total_base { font-size: 9.5px; color: #555; }
 .i_total_gst  { font-size: 9.5px; color: #555; }
 .i_total_amt  { font-weight: 700; font-size: 10.5px; }
 
-/* Delete button (shown in panel only) */
 .del-btn {
-  background: none;
-  border: none;
-  color: var(--danger);
-  cursor: pointer;
-  font-size: 14px;
-  padding: 6px 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  height: 100%;
+  background: none; border: none; color: var(--danger); cursor: pointer;
+  font-size: 14px; padding: 6px 4px;
+  display: flex; align-items: center; justify-content: center; width: 100%; height: 100%;
 }
 .del-btn:hover { background: #ffebee; }
 
-/* Totals */
-.p-totals {
-  text-align: right;
-  margin-top: 14px;
-  font-size: 12px;
-  line-height: 1.7;
-}
+.p-totals { text-align: right; margin-top: 14px; font-size: 12px; line-height: 1.7; }
 .p-grand-total {
-  font-size: 15px;
-  font-weight: 700;
-  border-top: 1.5px solid #000;
-  padding-top: 4px;
-  display: inline-block;
-  min-width: 200px;
+  font-size: 15px; font-weight: 700; border-top: 1.5px solid #000;
+  padding-top: 4px; display: inline-block; min-width: 200px;
 }
 .p-words { font-size: 10.5px; margin-top: 4px; }
 
-/* Bottom row */
-.p-bottom-row {
-  display: flex;
-  border: 1px solid #000;
-  margin-top: 16px;
-}
-.p-bottom-box {
-  padding: 8px;
-  font-size: 9.5px;
-  flex: 1;
-  border-right: 1px solid #000;
-  line-height: 1.5;
-}
+.p-bottom-row { display: flex; border: 1px solid #000; margin-top: 16px; }
+.p-bottom-box { padding: 8px; font-size: 9.5px; flex: 1; border-right: 1px solid #000; line-height: 1.5; }
 .p-bottom-box:last-child { border-right: none; }
 .p-bottom-box b { display: block; margin-bottom: 3px; font-size: 10px; }
 
-/* Footer */
-.p-footer {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 44px;
-  font-size: 11px;
-}
+.p-footer { display: flex; justify-content: space-between; margin-top: 44px; font-size: 11px; }
 
-/* Print: hide panel */
 @media print {
   .panel, .preview-wrap > *:not(#quote) { display: none !important; }
   body { background: white; padding: 0; display: block; }
   #quote { box-shadow: none; margin: 0; width: 100%; }
   .del-col { display: none !important; }
 }
-
-/* Mobile */
 @media (max-width: 860px) {
   .panel { width: 100%; position: relative; top: 0; }
   body { flex-direction: column; align-items: stretch; padding: 12px; }
@@ -365,9 +221,7 @@ table.item-table td textarea { text-align: left; }
 </head>
 <body>
 
-<!-- ═══════════════════════════════════════
-     CONTROL PANEL
-═══════════════════════════════════════ -->
+<!-- ═══ CONTROL PANEL ═══ -->
 <div class="panel" id="controlPanel">
   <div class="panel-title">SVT Document Editor</div>
 
@@ -376,6 +230,7 @@ table.item-table td textarea { text-align: left; }
     <select id="docType" onchange="onTypeChange()">
       <option value="QUOTATION">Quotation</option>
       <option value="PROFORMA INVOICE">Proforma Invoice</option>
+      <option value="PURCHASE ORDER">Purchase Order</option>
     </select>
   </div>
 
@@ -387,7 +242,8 @@ table.item-table td textarea { text-align: left; }
     </div>
   </div>
 
-  <div class="field-group">
+  <!-- QT / PI only -->
+  <div class="field-group qt-only" id="stateRow">
     <label>Place of Supply (State)</label>
     <select id="clientState" onchange="calc()">
       <option value="01">Jammu & Kashmir (01)</option>
@@ -429,10 +285,23 @@ table.item-table td textarea { text-align: left; }
     </select>
   </div>
 
+  <!-- PO only -->
+  <div class="field-group po-only">
+    <label>Delivery Location</label>
+    <input type="text" id="poDeliveryLoc" placeholder="e.g. Firozabad Godown" oninput="syncPOFields()">
+  </div>
+  <div class="field-group po-only">
+    <label>Payment Terms</label>
+    <input type="text" id="poPaymentTerms" placeholder="e.g. 30 days credit" oninput="syncPOFields()">
+  </div>
+  <div class="field-group po-only">
+    <label>Required By Date</label>
+    <input type="text" id="poRequiredBy" placeholder="e.g. 05-Jul-2026" oninput="syncPOFields()">
+  </div>
+
   <div class="field-group">
     <label>Google Sheets Sync URL</label>
-    <input type="text" id="sheetsUrl" placeholder="Paste your Apps Script Web App URL here"
-           oninput="saveSheetsUrl()">
+    <input type="text" id="sheetsUrl" placeholder="Paste your Apps Script Web App URL here" oninput="saveSheetsUrl()">
   </div>
 
   <div id="syncStatus" class="sync-status"></div>
@@ -446,9 +315,7 @@ table.item-table td textarea { text-align: left; }
   <button class="btn btn-dl" id="dlBtn" onclick="confirmAndGenerate()">⬇ Download PDF & Sync Sheet</button>
 </div>
 
-<!-- ═══════════════════════════════════════
-     A4 DOCUMENT PREVIEW
-═══════════════════════════════════════ -->
+<!-- ═══ A4 DOCUMENT PREVIEW ═══ -->
 <div class="preview-wrap">
 <div id="quote">
 
@@ -460,29 +327,36 @@ table.item-table td textarea { text-align: left; }
 
   <div class="doc-title" id="docTitle">QUOTATION</div>
 
-  <table class="p-info-table">
+  <table class="p-info-table" id="infoTable">
     <tr>
-      <td style="width:18%"><b id="docLabel">Quotation No:</b></td>
-      <td style="width:32%"><input id="qno" value="SVT-QT-06-001" style="font-weight:700;" title="Auto-filled. Edit manually if needed."></td>
+      <td style="width:20%"><b id="docLabel">Quotation No:</b></td>
+      <td style="width:30%"><input id="qno" value="" style="font-weight:700;"></td>
       <td style="width:10%"><b>Date:</b></td>
       <td><input id="today"></td>
     </tr>
     <tr>
-      <td><b>Place (City):</b></td>
+      <td><b id="row2col1">Place (City):</b></td>
       <td><input id="place" placeholder="City"></td>
       <td><b>Mode:</b></td>
       <td><input id="mode" value="Courier"></td>
+    </tr>
+    <!-- PO extra row, hidden by default -->
+    <tr id="poExtraRow" style="display:none;">
+      <td><b>Required By:</b></td>
+      <td><input id="poReqDisplay" placeholder="dd-Mon-YYYY" readonly></td>
+      <td><b>Payment:</b></td>
+      <td><input id="poPayDisplay" placeholder="e.g. 30 days" readonly></td>
     </tr>
   </table>
 
   <div class="p-address-row">
     <div class="p-address-box">
-      <b>Billed To:</b>
+      <b id="addr1Label">Billed To:</b>
       <textarea id="billed" placeholder="Name&#10;Address&#10;GSTIN" oninput="autoExpand(this)"></textarea>
     </div>
     <div class="p-address-box">
-      <b>Shipped To:</b>
-      <label class="same-check">
+      <b id="addr2Label">Shipped To:</b>
+      <label class="same-check" id="sameLabel">
         <input type="checkbox" id="sameCheck" onchange="syncShipped()"> Same as Billed
       </label>
       <textarea id="shipped" placeholder="Name&#10;Address" oninput="autoExpand(this)"></textarea>
@@ -490,179 +364,250 @@ table.item-table td textarea { text-align: left; }
   </div>
 
   <table class="item-table">
-    <thead>
-      <tr>
-        <th style="width:29%">Item Description</th>
-        <th style="width:13%">CAS No</th>
-        <th style="width:10%">Pack</th>
-        <th style="width:7%">Qty</th>
-        <th style="width:7%">Unit</th>
-        <th style="width:10%">Rate (₹)</th>
-        <th style="width:6%">GST%</th>
-        <th style="width:11%">Amount</th>
-        <th style="width:7%" class="del-col">Del</th>
-      </tr>
-    </thead>
+    <thead id="itemThead"></thead>
     <tbody id="tbody"></tbody>
   </table>
 
   <div class="p-totals">
     <p>Subtotal: ₹ <span id="sub">0.00</span></p>
     <div id="p_tax_container"></div>
-    <p>Round Off: ₹ <span id="round">0.00</span></p>
+    <p id="roundRow">Round Off: ₹ <span id="round">0.00</span></p>
     <div class="p-grand-total">Grand Total: ₹ <span id="grand">0.00</span></div>
     <p class="p-words"><b>Amount in Words:</b> <span id="words">Zero Rupees Only</span></p>
   </div>
 
-  <div class="p-bottom-row">
-    <div class="p-bottom-box">
-      <b>Bank Details:</b>
-      Bank: UNION BANK OF INDIA<br>
-      A/C No.: 424301010040874<br>
-      IFSC: UBIN0542431
-    </div>
-    <div class="p-bottom-box">
-      <b>Terms &amp; Conditions:</b>
-      1. Check complete specifications before placing a confirmed purchase order.<br>
-      2. GST % &amp; HSN Code subject to change per Government notification.<br>
-      3. Payment 100% advance by Cheque / RTGS / NEFT.<br>
-      4. Price validity: 7 days unless otherwise specified.<br>
-      5. Stock details subject to change without notice.<br>
-      6. Goods once sold will not be taken back.<br>
-      7. Items listed are not for medicinal or direct human consumption.
-    </div>
-  </div>
+  <div class="p-bottom-row" id="bottomRow"></div>
 
-  <div class="p-footer">
-    <div>Receiver's Signature<br><br>____________________</div>
-    <div style="text-align:right">For <b>Siddhi Vinayak Traders</b><br><br>Authorised Signatory</div>
-  </div>
+  <div class="p-footer" id="docFooter"></div>
 
-</div><!-- #quote -->
-</div><!-- .preview-wrap -->
+</div>
+</div>
 
-<!-- ═══════════════════════════════════════
-     JAVASCRIPT
-═══════════════════════════════════════ -->
 <script>
-// ── Date picker ────────────────────────────────────────────
-flatpickr("#today", { dateFormat: "d-M-Y", defaultDate: new Date() });
-
-// ── Auto-expand textareas ──────────────────────────────────
-function autoExpand(el) {
-  el.style.height = "auto";
-  el.style.height = el.scrollHeight + "px";
-}
-document.querySelectorAll("textarea").forEach(autoExpand);
-
-// ── Same-as-billed checkbox ────────────────────────────────
-function syncShipped() {
-  const cb = document.getElementById("sameCheck");
-  const shipped = document.getElementById("shipped");
-  if (cb.checked) {
-    shipped.value = document.getElementById("billed").value;
-    shipped.disabled = true;
-    autoExpand(shipped);
-  } else {
-    shipped.disabled = false;
-  }
-}
-document.getElementById("billed").addEventListener("input", function() {
-  if (document.getElementById("sameCheck").checked) {
-    const s = document.getElementById("shipped");
-    s.value = this.value;
-    autoExpand(s);
-  }
-});
-
-// ── Serial number logic ────────────────────────────────────
-// Key pattern: svt_counter_QT_06  →  stores last used number
-function getMonthStr() {
-  return String(new Date().getMonth() + 1).padStart(2, "0");
-}
+// ─────────────────────────────────────────────
+// HELPERS
+// ─────────────────────────────────────────────
+function isPO() { return document.getElementById("docType").value === "PURCHASE ORDER"; }
+function isPI() { return document.getElementById("docType").value === "PROFORMA INVOICE"; }
+function isUP() { return document.getElementById("clientState").value === "09"; }
+function getMonthStr() { return String(new Date().getMonth()+1).padStart(2,"0"); }
 
 function getTypeCode() {
-  return document.getElementById("docType").value === "PROFORMA INVOICE" ? "PI" : "QT";
+  const v = document.getElementById("docType").value;
+  if (v === "PROFORMA INVOICE") return "PI";
+  if (v === "PURCHASE ORDER")   return "PO";
+  return "QT";
 }
-
-function getStorageKey() {
-  return `svt_counter_${getTypeCode()}_${getMonthStr()}`;
-}
+function getStorageKey() { return `svt_counter_${getTypeCode()}_${getMonthStr()}`; }
 
 function peekNextSerial() {
-  const key = getStorageKey();
-  const last = parseInt(localStorage.getItem(key) || "0");
-  const next = last + 1;
-  return `SVT-${getTypeCode()}-${getMonthStr()}-${String(next).padStart(3, "0")}`;
+  const last = parseInt(localStorage.getItem(getStorageKey()) || "0");
+  return `SVT-${getTypeCode()}-${getMonthStr()}-${String(last+1).padStart(3,"0")}`;
 }
-
 function consumeSerial() {
-  const key = getStorageKey();
-  const last = parseInt(localStorage.getItem(key) || "0");
-  const next = last + 1;
+  const key  = getStorageKey();
+  const next = parseInt(localStorage.getItem(key)||"0") + 1;
   localStorage.setItem(key, String(next));
-  return `SVT-${getTypeCode()}-${getMonthStr()}-${String(next).padStart(3, "0")}`;
+  return `SVT-${getTypeCode()}-${getMonthStr()}-${String(next).padStart(3,"0")}`;
 }
-
 function updateSerialPreview() {
   document.getElementById("serialPreview").textContent = peekNextSerial();
 }
-
 function resetCounter() {
-  const key = getStorageKey();
-  const type = getTypeCode();
-  const month = getMonthStr();
+  const type=getTypeCode(), month=getMonthStr();
   if (confirm(`Reset ${type} counter for month ${month} back to 0?`)) {
-    localStorage.setItem(key, "0");
+    localStorage.setItem(getStorageKey(), "0");
     updateSerialPreview();
     alert("Counter reset. Next serial will be …-001.");
   }
 }
 
-// ── Document type change ───────────────────────────────────
+// ─────────────────────────────────────────────
+// AUTO-EXPAND TEXTAREAS
+// ─────────────────────────────────────────────
+function autoExpand(el) {
+  el.style.height = "auto";
+  el.style.height = el.scrollHeight + "px";
+}
+
+// ─────────────────────────────────────────────
+// SAME-AS-BILLED
+// ─────────────────────────────────────────────
+function syncShipped() {
+  const cb = document.getElementById("sameCheck");
+  const sh = document.getElementById("shipped");
+  if (cb.checked) { sh.value = document.getElementById("billed").value; sh.disabled = true; autoExpand(sh); }
+  else            { sh.disabled = false; }
+}
+document.getElementById("billed").addEventListener("input", function() {
+  if (document.getElementById("sameCheck").checked) {
+    const s = document.getElementById("shipped");
+    s.value = this.value; autoExpand(s);
+  }
+});
+
+// ─────────────────────────────────────────────
+// PO FIELD SYNC → preview read-only cells
+// ─────────────────────────────────────────────
+function syncPOFields() {
+  document.getElementById("poReqDisplay").value = document.getElementById("poRequiredBy").value;
+  document.getElementById("poPayDisplay").value = document.getElementById("poPaymentTerms").value;
+  document.getElementById("place").value        = document.getElementById("poDeliveryLoc").value;
+}
+
+// ─────────────────────────────────────────────
+// RENDER TABLE HEADER
+// ─────────────────────────────────────────────
+function renderThead() {
+  const thead = document.getElementById("itemThead");
+  if (isPO()) {
+    thead.innerHTML = `<tr>
+      <th style="width:30%">Item Description</th>
+      <th style="width:13%">CAS No</th>
+      <th style="width:10%">Pack Size</th>
+      <th style="width:7%">Qty</th>
+      <th style="width:7%">Unit</th>
+      <th style="width:10%">Rate (₹)</th>
+      <th style="width:6%">HSN/SAC</th>
+      <th style="width:10%">Amount (₹)</th>
+      <th style="width:7%" class="del-col">Del</th>
+    </tr>`;
+  } else {
+    thead.innerHTML = `<tr>
+      <th style="width:29%">Item Description</th>
+      <th style="width:13%">CAS No</th>
+      <th style="width:10%">Pack</th>
+      <th style="width:7%">Qty</th>
+      <th style="width:7%">Unit</th>
+      <th style="width:10%">Rate (₹)</th>
+      <th style="width:6%">GST%</th>
+      <th style="width:11%">Amount</th>
+      <th style="width:7%" class="del-col">Del</th>
+    </tr>`;
+  }
+}
+
+// ─────────────────────────────────────────────
+// RENDER BOTTOM ROW & FOOTER
+// ─────────────────────────────────────────────
+function renderBottom() {
+  const br = document.getElementById("bottomRow");
+  const ft = document.getElementById("docFooter");
+  if (isPO()) {
+    br.innerHTML = `
+      <div class="p-bottom-box">
+        <b>Deliver To:</b>
+        Siddhi Vinayak Traders<br>
+        12/306, Arya Nagar, Firozabad, UP – 283203<br>
+        GSTIN: 09BFZPK4340C2Z7
+      </div>
+      <div class="p-bottom-box">
+        <b>Terms &amp; Conditions:</b>
+        1. Please confirm acceptance of this PO within 2 working days.<br>
+        2. Supply strictly as per specifications mentioned above.<br>
+        3. Invoice must quote our PO number.<br>
+        4. GST % &amp; HSN Code as per Government notification.<br>
+        5. Material subject to inspection on delivery.<br>
+        6. Price as agreed — no revision accepted without prior written consent.
+      </div>`;
+    ft.innerHTML = `
+      <div>Vendor Acceptance<br><br>____________________<br><small>Authorised Signatory &amp; Stamp</small></div>
+      <div style="text-align:right">For <b>Siddhi Vinayak Traders</b><br><br>____________________<br><small>Authorised Signatory</small></div>`;
+  } else {
+    br.innerHTML = `
+      <div class="p-bottom-box">
+        <b>Bank Details:</b>
+        Bank: UNION BANK OF INDIA<br>
+        A/C No.: 424301010040874<br>
+        IFSC: UBIN0542431
+      </div>
+      <div class="p-bottom-box">
+        <b>Terms &amp; Conditions:</b>
+        1. Check complete specifications before placing a confirmed purchase order.<br>
+        2. GST % &amp; HSN Code subject to change per Government notification.<br>
+        3. Payment 100% advance by Cheque / RTGS / NEFT.<br>
+        4. Price validity: 7 days unless otherwise specified.<br>
+        5. Stock details subject to change without notice.<br>
+        6. Goods once sold will not be taken back.<br>
+        7. Items listed are not for medicinal or direct human consumption.
+      </div>`;
+    ft.innerHTML = `
+      <div>Receiver's Signature<br><br>____________________</div>
+      <div style="text-align:right">For <b>Siddhi Vinayak Traders</b><br><br>Authorised Signatory</div>`;
+  }
+}
+
+// ─────────────────────────────────────────────
+// DOCUMENT TYPE CHANGE — main switch
+// ─────────────────────────────────────────────
 function onTypeChange() {
-  const type = document.getElementById("docType").value;
-  document.getElementById("docTitle").textContent = type;
-  document.getElementById("docLabel").textContent =
-    type === "PROFORMA INVOICE" ? "PI No:" : "Quotation No:";
+  const po = isPO();
+  const pi = isPI();
+
+  // Body class → CSS handles panel colour + show/hide
+  document.body.classList.toggle("po-mode", po);
+
+  // Doc title + label
+  document.getElementById("docTitle").textContent = document.getElementById("docType").value;
+  document.getElementById("docLabel").textContent = po ? "PO No:" : (pi ? "PI No:" : "Quotation No:");
+
+  // Row-2 label
+  document.getElementById("row2col1").textContent = po ? "Delivery Location:" : "Place (City):";
+
+  // PO extra info row
+  document.getElementById("poExtraRow").style.display = po ? "" : "none";
+
+  // Address labels
+  document.getElementById("addr1Label").textContent = po ? "Vendor / Supplier:" : "Billed To:";
+  document.getElementById("addr2Label").textContent = po ? "Bill To (Us):"       : "Shipped To:";
+
+  // Same-check only for QT/PI
+  document.getElementById("sameLabel").style.display = po ? "none" : "";
+
+  // Pre-fill "Bill To" box with SVT address for PO
+  if (po) {
+    document.getElementById("shipped").value =
+      "Siddhi Vinayak Traders\n12/306, Arya Nagar, Firozabad, UP – 283203\nGSTIN: 09BFZPK4340C2Z7";
+    autoExpand(document.getElementById("shipped"));
+    document.getElementById("billed").placeholder  = "Vendor Name\nAddress\nGSTIN";
+  } else {
+    // Clear SVT prefill if switching away from PO
+    const sh = document.getElementById("shipped");
+    if (sh.value.includes("09BFZPK4340C2Z7")) sh.value = "";
+    document.getElementById("billed").placeholder = "Name\nAddress\nGSTIN";
+  }
+
+  // Round-off row: hide for PO (no GST calculation)
+  document.getElementById("roundRow").style.display = po ? "none" : "";
+
+  renderThead();
+  renderBottom();
   updateSerialPreview();
-  // Also refresh the qno field in the document preview
   document.getElementById("qno").value = peekNextSerial();
+  calc();
 }
 
-// Initialise preview and qno on load
-updateSerialPreview();
-document.getElementById("qno").value = peekNextSerial();
-
-// ── Google Sheets URL persistence ─────────────────────────
-(function loadSheetsUrl() {
-  const saved = localStorage.getItem("svt_sheets_url") || "";
-  document.getElementById("sheetsUrl").value = saved;
-})();
-
-function saveSheetsUrl() {
-  localStorage.setItem("svt_sheets_url", document.getElementById("sheetsUrl").value.trim());
-}
-
-// ── GST calc ──────────────────────────────────────────────
+// ─────────────────────────────────────────────
+// GST / TOTAL CALCULATION
+// ─────────────────────────────────────────────
 function calc() {
   let sub = 0, totalGst = 0;
-  const isUP = document.getElementById("clientState").value === "09";
+  const _isPO = isPO(), _isUP = isUP();
 
   document.querySelectorAll("#tbody tr").forEach(row => {
     const qty  = Math.max(0, parseFloat(row.querySelector(".i_qty").value)  || 0);
     const rate = Math.max(0, parseFloat(row.querySelector(".i_rate").value) || 0);
-    const gst  = Math.max(0, parseFloat(row.querySelector(".i_gst").value)  || 0);
+    const gstV = row.querySelector(".i_gst").value;
+    const gst  = _isPO ? 0 : Math.max(0, parseFloat(gstV) || 0);
     const base = qty * rate;
-    const gstAmt = base * (gst / 100);
-    const total  = base + gstAmt;
+    const gstA = base * (gst/100);
 
     row.querySelector(".i_total_base").textContent = `Base: ₹${base.toFixed(2)}`;
-    row.querySelector(".i_total_gst").textContent  = `GST: ₹${gstAmt.toFixed(2)}`;
-    row.querySelector(".i_total_amt").textContent  = `₹${total.toFixed(2)}`;
+    row.querySelector(".i_total_gst").textContent  = _isPO ? "" : `GST: ₹${gstA.toFixed(2)}`;
+    row.querySelector(".i_total_amt").textContent  = `₹${(base+gstA).toFixed(2)}`;
 
     sub      += base;
-    totalGst += gstAmt;
+    totalGst += gstA;
   });
 
   const grandExact = sub + totalGst;
@@ -671,17 +616,27 @@ function calc() {
 
   document.getElementById("sub").textContent   = sub.toFixed(2);
   document.getElementById("round").textContent = roundOff.toFixed(2);
-  document.getElementById("grand").textContent = rounded.toFixed(2);
-  document.getElementById("words").textContent = numberToWords(rounded);
+  document.getElementById("grand").textContent = _isPO ? sub.toFixed(2) : rounded.toFixed(2);
+  document.getElementById("words").textContent = numberToWords(_isPO ? Math.round(sub) : rounded);
 
-  document.getElementById("p_tax_container").innerHTML = isUP
-    ? `<p>CGST: ₹ ${(totalGst/2).toFixed(2)}</p><p>SGST: ₹ ${(totalGst/2).toFixed(2)}</p>`
-    : `<p>IGST: ₹ ${totalGst.toFixed(2)}</p>`;
+  if (_isPO) {
+    document.getElementById("p_tax_container").innerHTML = "";
+  } else {
+    document.getElementById("p_tax_container").innerHTML = _isUP
+      ? `<p>CGST: ₹ ${(totalGst/2).toFixed(2)}</p><p>SGST: ₹ ${(totalGst/2).toFixed(2)}</p>`
+      : `<p>IGST: ₹ ${totalGst.toFixed(2)}</p>`;
+  }
 }
 
-// ── Add/remove rows ────────────────────────────────────────
+// ─────────────────────────────────────────────
+// ADD / DELETE ROWS
+// ─────────────────────────────────────────────
 function addRow(data = {}) {
   const tr = document.createElement("tr");
+  const gstCell = isPO()
+    ? `<td><input type="text"   class="i_gst" value="${data.gst||""}" placeholder="HSN"></td>`
+    : `<td><input type="number" class="i_gst" min="0" value="${data.gst||18}" oninput="calc()"></td>`;
+
   tr.innerHTML = `
     <td><textarea class="i_name" oninput="autoExpand(this)" placeholder="Item name">${data.name||""}</textarea></td>
     <td><textarea class="i_cas"  oninput="autoExpand(this)" placeholder="CAS No">${data.cas||""}</textarea></td>
@@ -689,114 +644,91 @@ function addRow(data = {}) {
     <td><input type="number" class="i_qty"  min="0" value="${data.qty||1}"  oninput="calc()"></td>
     <td><input type="text"   class="i_unit" value="${data.unit||'kg'}"></td>
     <td><input type="number" class="i_rate" min="0" value="${data.rate||0}" oninput="calc()"></td>
-    <td><input type="number" class="i_gst"  min="0" value="${data.gst||18}" oninput="calc()"></td>
+    ${gstCell}
     <td>
       <div class="i_total_wrap">
         <div class="i_total_base">Base: ₹0.00</div>
-        <div class="i_total_gst">GST: ₹0.00</div>
+        <div class="i_total_gst"></div>
         <div class="i_total_amt">₹0.00</div>
       </div>
     </td>
-    <td class="del-col"><button class="del-btn" onclick="delRow(this)" title="Remove row">✕</button></td>
-  `;
+    <td class="del-col"><button class="del-btn" onclick="delRow(this)" title="Remove">✕</button></td>`;
   document.getElementById("tbody").appendChild(tr);
   calc();
 }
 
-function delRow(btn) {
-  btn.closest("tr").remove();
-  calc();
-}
+function delRow(btn) { btn.closest("tr").remove(); calc(); }
 
-// ── Excel import ───────────────────────────────────────────
-// Expected columns: Item Description | CAS No | Pack | Qty | Unit | Rate | GST%
+// ─────────────────────────────────────────────
+// EXCEL IMPORT
+// ─────────────────────────────────────────────
 function importExcel(input) {
-  const file = input.files[0];
-  if (!file) return;
+  const file = input.files[0]; if (!file) return;
   const reader = new FileReader();
   reader.onload = function(e) {
-    const wb   = XLSX.read(e.target.result, { type: "binary" });
+    const wb   = XLSX.read(e.target.result, { type:"binary" });
     const ws   = wb.Sheets[wb.SheetNames[0]];
-    const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
-    if (rows.length < 2) { alert("No data rows found in the Excel file."); return; }
-
-    // Detect header row (first row) and skip it
-    const dataRows = rows.slice(1);
+    const rows = XLSX.utils.sheet_to_json(ws, { header:1, defval:"" });
+    if (rows.length < 2) { alert("No data rows found."); return; }
     let added = 0;
-    dataRows.forEach(r => {
-      if (!r[0] && !r[5]) return; // skip blank rows
-      addRow({
-        name: r[0] || "",
-        cas:  r[1] || "",
-        pack: r[2] || "",
-        qty:  r[3] || 1,
-        unit: r[4] || "kg",
-        rate: r[5] || 0,
-        gst:  r[6] || 18
-      });
+    rows.slice(1).forEach(r => {
+      if (!r[0] && !r[5]) return;
+      addRow({ name:r[0]||"", cas:r[1]||"", pack:r[2]||"", qty:r[3]||1, unit:r[4]||"kg", rate:r[5]||0, gst:r[6]||18 });
       added++;
     });
-    alert(`✅ ${added} item(s) imported successfully.`);
-    input.value = ""; // reset file input
+    alert(`✅ ${added} item(s) imported.`);
+    input.value = "";
   };
   reader.readAsBinaryString(file);
 }
 
-// ── Number to words (Indian) ───────────────────────────────
+// ─────────────────────────────────────────────
+// NUMBER TO WORDS (Indian)
+// ─────────────────────────────────────────────
 function numberToWords(num) {
   const ones = ["","One","Two","Three","Four","Five","Six","Seven","Eight","Nine","Ten",
     "Eleven","Twelve","Thirteen","Fourteen","Fifteen","Sixteen","Seventeen","Eighteen","Nineteen"];
   const tens = ["","","Twenty","Thirty","Forty","Fifty","Sixty","Seventy","Eighty","Ninety"];
-  function convert(n) {
-    if (n === 0) return "";
-    if (n < 20)  return ones[n];
-    if (n < 100) return tens[Math.floor(n/10)] + (n%10 ? " " + ones[n%10] : "");
-    if (n < 1000) return ones[Math.floor(n/100)] + " Hundred" + (n%100 ? " " + convert(n%100) : "");
-    if (n < 100000) return convert(Math.floor(n/1000)) + " Thousand" + (n%1000 ? " " + convert(n%1000) : "");
-    if (n < 10000000) return convert(Math.floor(n/100000)) + " Lakh" + (n%100000 ? " " + convert(n%100000) : "");
-    return convert(Math.floor(n/10000000)) + " Crore" + (n%10000000 ? " " + convert(n%10000000) : "");
+  function cvt(n) {
+    if (!n) return "";
+    if (n<20)       return ones[n];
+    if (n<100)      return tens[Math.floor(n/10)]+(n%10?" "+ones[n%10]:"");
+    if (n<1000)     return ones[Math.floor(n/100)]+" Hundred"+(n%100?" "+cvt(n%100):"");
+    if (n<100000)   return cvt(Math.floor(n/1000))+" Thousand"+(n%1000?" "+cvt(n%1000):"");
+    if (n<10000000) return cvt(Math.floor(n/100000))+" Lakh"+(n%100000?" "+cvt(n%100000):"");
+    return cvt(Math.floor(n/10000000))+" Crore"+(n%10000000?" "+cvt(n%10000000):"");
   }
-  return num > 0 ? convert(num) + " Rupees Only" : "Zero Rupees Only";
+  return num>0 ? cvt(num)+" Rupees Only" : "Zero Rupees Only";
 }
 
-// ── Confirm → generate PDF + sync ─────────────────────────
+// ─────────────────────────────────────────────
+// CONFIRM + GENERATE
+// ─────────────────────────────────────────────
 function confirmAndGenerate() {
+  const rows = document.querySelectorAll("#tbody tr").length;
+  if (rows===0) { alert("Add at least one item before generating."); return; }
   const serial = peekNextSerial();
   const grand  = document.getElementById("grand").textContent;
-  const rows   = document.querySelectorAll("#tbody tr").length;
+  if (!confirm(`Generate ${document.getElementById("docType").value}?\n\nSerial: ${serial}\nItems: ${rows}\nGrand Total: ₹${grand}\n\nThis will consume serial ${serial}.`)) return;
 
-  if (rows === 0) { alert("Please add at least one item before generating."); return; }
-
-  const ok = confirm(
-    `Generate ${document.getElementById("docType").value}?\n\n` +
-    `Serial: ${serial}\n` +
-    `Items: ${rows}\n` +
-    `Grand Total: ₹${grand}\n\n` +
-    `This will consume serial number ${serial}.`
-  );
-  if (!ok) return;
-
-  // If user manually edited qno, use that; otherwise consume next serial
   const manualQno = document.getElementById("qno").value.trim();
-  const autoSerial = peekNextSerial();
-  let assignedSerial;
-  if (manualQno && manualQno !== autoSerial) {
-    // User provided a custom number — use it without consuming the counter
-    assignedSerial = manualQno;
+  let assigned;
+  if (manualQno && manualQno !== peekNextSerial()) {
+    assigned = manualQno;
   } else {
-    assignedSerial = consumeSerial();
-    document.getElementById("qno").value = assignedSerial;
+    assigned = consumeSerial();
+    document.getElementById("qno").value = assigned;
     updateSerialPreview();
   }
-
-  generatePDF(assignedSerial);
+  generatePDF(assigned);
 }
 
-// ── PDF generation (pdfmake — text is selectable) ─────────
+// ─────────────────────────────────────────────
+// PDF GENERATION
+// ─────────────────────────────────────────────
 function generatePDF(serial) {
   const btn = document.getElementById("dlBtn");
-  btn.disabled = true;
-  btn.textContent = "Generating PDF…";
+  btn.disabled = true; btn.textContent = "Generating PDF…";
 
   const type    = document.getElementById("docType").value;
   const date    = document.getElementById("today").value;
@@ -804,292 +736,220 @@ function generatePDF(serial) {
   const mode    = document.getElementById("mode").value;
   const billed  = document.getElementById("billed").value;
   const shipped = document.getElementById("shipped").value;
-  const isUP    = document.getElementById("clientState").value === "09";
-
+  const reqBy   = document.getElementById("poRequiredBy").value;
+  const payTerm = document.getElementById("poPaymentTerms").value;
+  const _isPO   = isPO(), _isUP = isUP();
   const sub     = document.getElementById("sub").textContent;
   const round   = document.getElementById("round").textContent;
   const grand   = document.getElementById("grand").textContent;
   const words   = document.getElementById("words").textContent;
 
-  // Tax lines
-  let taxLines = [];
-  if (isUP) {
-    const half = (parseFloat(sub) * 0).toFixed(2); // already computed
-    document.querySelectorAll("#p_tax_container p").forEach(p => taxLines.push(p.textContent));
-  } else {
-    document.querySelectorAll("#p_tax_container p").forEach(p => taxLines.push(p.textContent));
-  }
+  const qLabel  = _isPO ? "PO No:" : (isPI() ? "PI No:" : "Quotation No:");
+  const a1Label = _isPO ? "Vendor / Supplier:" : "Billed To:";
+  const a2Label = _isPO ? "Bill To (Us):"       : "Shipped To:";
 
-  // Build item rows for table
-  const headerRow = [
-    { text: "#",                style: "th" },
-    { text: "Item Description", style: "th" },
-    { text: "CAS No",           style: "th" },
-    { text: "Pack",             style: "th" },
-    { text: "Qty",              style: "th" },
-    { text: "Unit",             style: "th" },
-    { text: "Rate (₹)",         style: "th" },
-    { text: "GST%",             style: "th" },
-    { text: "Base (₹)",         style: "th" },
-    { text: "GST Amt (₹)",      style: "th" },
-    { text: "Total (₹)",        style: "th" },
-  ];
+  // Info table body
+  const infoBody = _isPO
+    ? [
+        [{text:"PO No:",style:"label"},{text:serial,style:"val",bold:true},{text:"Date:",style:"label"},{text:date,style:"val"}],
+        [{text:"Delivery Location:",style:"label"},{text:place,style:"val"},{text:"Mode:",style:"label"},{text:mode,style:"val"}],
+        [{text:"Required By:",style:"label"},{text:reqBy,style:"val"},{text:"Payment Terms:",style:"label"},{text:payTerm,style:"val"}],
+      ]
+    : [
+        [{text:qLabel,style:"label"},{text:serial,style:"val",bold:true},{text:"Date:",style:"label"},{text:date,style:"val"}],
+        [{text:"Place (City):",style:"label"},{text:place,style:"val"},{text:"Mode:",style:"label"},{text:mode,style:"val"}],
+      ];
 
-  const itemRows = [];
-  let sno = 1;
-  let totalGstAmt = 0;
-  let itemsSummary = []; // for sheets sync
+  // Item header
+  const hdr = _isPO
+    ? ["#","Item Description","CAS No","Pack Size","Qty","Unit","Rate (₹)","HSN/SAC","Amount (₹)"]
+    : ["#","Item Description","CAS No","Pack","Qty","Unit","Rate (₹)","GST%","Base (₹)","GST Amt","Total (₹)"];
+  const headerRow = hdr.map(t=>({text:t,style:"th"}));
 
-  document.querySelectorAll("#tbody tr").forEach(row => {
-    const qty  = parseFloat(row.querySelector(".i_qty").value)  || 0;
-    const rate = parseFloat(row.querySelector(".i_rate").value) || 0;
-    const gst  = parseFloat(row.querySelector(".i_gst").value)  || 0;
+  // Item rows
+  const itemRows=[]; let sno=1, totalGstAmt=0; const summary=[];
+  document.querySelectorAll("#tbody tr").forEach(row=>{
+    const qty  = parseFloat(row.querySelector(".i_qty").value)||0;
+    const rate = parseFloat(row.querySelector(".i_rate").value)||0;
+    const gstV = row.querySelector(".i_gst").value;
+    const gst  = _isPO ? 0 : (parseFloat(gstV)||0);
     const name = row.querySelector(".i_name").value;
     const cas  = row.querySelector(".i_cas").value;
     const pack = row.querySelector(".i_pack").value;
     const unit = row.querySelector(".i_unit").value;
-    const base = qty * rate;
-    const gstA = base * (gst / 100);
-    totalGstAmt += gstA;
-    itemsSummary.push(`${name} x${qty}`);
-
-    itemRows.push([
-      { text: sno++,             style: "td", alignment: "center" },
-      { text: name,              style: "td" },
-      { text: cas,               style: "td", alignment: "center" },
-      { text: pack,              style: "td", alignment: "center" },
-      { text: qty,               style: "td", alignment: "center" },
-      { text: unit,              style: "td", alignment: "center" },
-      { text: rate.toFixed(2),   style: "td", alignment: "right"  },
-      { text: gst + "%",         style: "td", alignment: "center" },
-      { text: base.toFixed(2),   style: "td", alignment: "right"  },
-      { text: gstA.toFixed(2),   style: "td", alignment: "right"  },
-      { text: (base+gstA).toFixed(2), style: "td", alignment: "right" },
-    ]);
+    const base = qty*rate, gstA=base*(gst/100);
+    totalGstAmt+=gstA; summary.push(`${name} x${qty}`);
+    if (_isPO) {
+      itemRows.push([
+        {text:sno++,style:"td",alignment:"center"},
+        {text:name,style:"td"},
+        {text:cas,style:"td",alignment:"center"},
+        {text:pack,style:"td",alignment:"center"},
+        {text:qty,style:"td",alignment:"center"},
+        {text:unit,style:"td",alignment:"center"},
+        {text:rate.toFixed(2),style:"td",alignment:"right"},
+        {text:gstV,style:"td",alignment:"center"},
+        {text:base.toFixed(2),style:"td",alignment:"right"},
+      ]);
+    } else {
+      itemRows.push([
+        {text:sno++,style:"td",alignment:"center"},
+        {text:name,style:"td"},
+        {text:cas,style:"td",alignment:"center"},
+        {text:pack,style:"td",alignment:"center"},
+        {text:qty,style:"td",alignment:"center"},
+        {text:unit,style:"td",alignment:"center"},
+        {text:rate.toFixed(2),style:"td",alignment:"right"},
+        {text:gst+"%",style:"td",alignment:"center"},
+        {text:base.toFixed(2),style:"td",alignment:"right"},
+        {text:gstA.toFixed(2),style:"td",alignment:"right"},
+        {text:(base+gstA).toFixed(2),style:"td",alignment:"right"},
+      ]);
+    }
   });
 
-  // Tax text block
-  let taxText = "";
-  if (isUP) {
-    taxText = `CGST: ₹${(totalGstAmt/2).toFixed(2)}     SGST: ₹${(totalGstAmt/2).toFixed(2)}`;
-  } else {
-    taxText = `IGST: ₹${totalGstAmt.toFixed(2)}`;
-  }
+  const tableWidths = _isPO ? [14,"*",50,34,20,20,36,26,44] : [14,"*",50,34,20,20,34,22,36,36,36];
 
-  const docDefinition = {
-    pageSize: "A4",
-    pageMargins: [28, 20, 28, 20],
+  const taxText = !_isPO ? (_isUP
+    ? `CGST: ₹${(totalGstAmt/2).toFixed(2)}     SGST: ₹${(totalGstAmt/2).toFixed(2)}`
+    : `IGST: ₹${totalGstAmt.toFixed(2)}`) : "";
 
-    styles: {
-      h1:   { fontSize: 16, bold: true, alignment: "center" },
-      h2:   { fontSize: 10, alignment: "center", color: "#444" },
-      docT: { fontSize: 14, bold: true, alignment: "center", decoration: "underline", margin: [0,6,0,6] },
-      th:   { fontSize: 8, bold: true, fillColor: "#f2f2f2", alignment: "center" },
-      td:   { fontSize: 8 },
-      label:{ fontSize: 9, bold: true },
-      val:  { fontSize: 9 },
-      small:{ fontSize: 8, color: "#444" },
-      totR: { fontSize: 9, alignment: "right" },
-      grand:{ fontSize: 12, bold: true, alignment: "right" },
+  const tcText = _isPO
+    ? "1. Please confirm acceptance within 2 working days.\n2. Supply as per specifications above only.\n3. Invoice must quote our PO number.\n4. GST % & HSN as per Government notification.\n5. Material subject to inspection on delivery.\n6. No price revision without prior written consent."
+    : "1. Check complete specifications before placing a confirmed purchase order.\n2. GST % & HSN Code subject to change per Government notification.\n3. Payment 100% advance by Cheque / RTGS / NEFT.\n4. Price validity: 7 days unless otherwise specified.\n5. Stock details subject to change without notice.\n6. Goods once sold will not be taken back.\n7. Items not for medicinal or direct human consumption.";
+
+  const bankOrDeliver = _isPO
+    ? [{text:"Deliver To:",style:"label"},{text:"Siddhi Vinayak Traders\n12/306, Arya Nagar, Firozabad, UP – 283203\nGSTIN: 09BFZPK4340C2Z7",style:"small"}]
+    : [{text:"Bank Details:",style:"label"},{text:"Bank: UNION BANK OF INDIA\nA/C No.: 424301010040874\nIFSC: UBIN0542431",style:"small"}];
+
+  const totals = _isPO
+    ? [
+        {text:`Subtotal (Base): ₹${sub}`,style:"totR"},
+        {canvas:[{type:"line",x1:300,y1:3,x2:539,y2:3,lineWidth:0.8}]},
+        {text:`Grand Total: ₹${grand}`,style:"grand",margin:[0,2,0,2]},
+        {text:`Amount in Words: ${words}`,style:"small",margin:[0,0,0,10]},
+      ]
+    : [
+        {text:`Subtotal: ₹${sub}`,style:"totR"},
+        {text:taxText,style:"totR"},
+        {text:`Round Off: ₹${round}`,style:"totR"},
+        {canvas:[{type:"line",x1:300,y1:3,x2:539,y2:3,lineWidth:0.8}]},
+        {text:`Grand Total: ₹${grand}`,style:"grand",margin:[0,2,0,2]},
+        {text:`Amount in Words: ${words}`,style:"small",margin:[0,0,0,10]},
+      ];
+
+  const dd = {
+    pageSize:"A4", pageMargins:[28,20,28,20],
+    styles:{
+      h1:{fontSize:16,bold:true,alignment:"center"},
+      h2:{fontSize:10,alignment:"center",color:"#444"},
+      docT:{fontSize:14,bold:true,alignment:"center",decoration:"underline",margin:[0,6,0,6]},
+      th:{fontSize:8,bold:true,fillColor:"#f2f2f2",alignment:"center"},
+      td:{fontSize:8},
+      label:{fontSize:9,bold:true},
+      val:{fontSize:9},
+      small:{fontSize:8,color:"#444"},
+      totR:{fontSize:9,alignment:"right"},
+      grand:{fontSize:12,bold:true,alignment:"right"},
     },
-
-    content: [
-      // ── Header ──
-      { text: "SIDDHI VINAYAK TRADERS", style: "h1" },
-      { text: "12/306, Arya Nagar, Firozabad, UP – 283203", style: "h2" },
-      { text: "GSTIN: 09BFZPK4340C2Z7  |  +91 9286107722  |  svtjp11@gmail.com", style: "h2" },
-      { canvas: [{ type: "line", x1: 0, y1: 4, x2: 539, y2: 4, lineWidth: 1.5 }] },
-
-      // ── Doc title ──
-      { text: type, style: "docT" },
-
-      // ── Info row ──
+    content:[
+      {text:"SIDDHI VINAYAK TRADERS",style:"h1"},
+      {text:"12/306, Arya Nagar, Firozabad, UP – 283203",style:"h2"},
+      {text:"GSTIN: 09BFZPK4340C2Z7  |  +91 9286107722  |  svtjp11@gmail.com",style:"h2"},
+      {canvas:[{type:"line",x1:0,y1:4,x2:539,y2:4,lineWidth:1.5}]},
+      {text:type,style:"docT"},
       {
-        columns: [
-          {
-            width: "50%",
-            table: { widths: ["40%","60%"], body: [
-              [{ text: (type==="PROFORMA INVOICE"?"PI No:":"Quotation No:"), style:"label" }, { text: serial, style:"val", bold:true }],
-              [{ text: "Date:",           style:"label" }, { text: date,  style:"val" }],
-            ]},
-            layout: "lightHorizontalLines"
-          },
-          { width: 10, text: "" },
-          {
-            width: "50%",
-            table: { widths: ["40%","60%"], body: [
-              [{ text: "Place (City):", style:"label" }, { text: place, style:"val" }],
-              [{ text: "Mode:",         style:"label" }, { text: mode,  style:"val" }],
-            ]},
-            layout: "lightHorizontalLines"
-          },
+        columns:[{
+          width:"100%",
+          table:{widths:["25%","25%","25%","25%"],body:infoBody},
+          layout:{hLineWidth:()=>0.5,vLineWidth:()=>0.5}
+        }],
+        margin:[0,4,0,8]
+      },
+      {
+        columns:[
+          {width:"50%",table:{widths:["100%"],body:[[{text:a1Label,style:"label"}],[{text:billed,style:"val",fontSize:9}]]},layout:{hLineWidth:()=>0.5,vLineWidth:()=>0.5}},
+          {width:8,text:""},
+          {width:"50%",table:{widths:["100%"],body:[[{text:a2Label,style:"label"}],[{text:shipped,style:"val",fontSize:9}]]},layout:{hLineWidth:()=>0.5,vLineWidth:()=>0.5}},
         ],
-        margin: [0, 4, 0, 8]
+        margin:[0,0,0,10]
       },
-
-      // ── Address ──
       {
-        columns: [
-          {
-            width: "50%",
-            table: { widths: ["100%"], body: [
-              [{ text: "Billed To:", style:"label" }],
-              [{ text: billed, style:"val", fontSize:9 }],
-            ]},
-            layout: { hLineWidth:()=>0.5, vLineWidth:()=>0.5 }
-          },
-          { width: 8, text: "" },
-          {
-            width: "50%",
-            table: { widths: ["100%"], body: [
-              [{ text: "Shipped To:", style:"label" }],
-              [{ text: shipped, style:"val", fontSize:9 }],
-            ]},
-            layout: { hLineWidth:()=>0.5, vLineWidth:()=>0.5 }
-          },
+        table:{headerRows:1,widths:tableWidths,body:[headerRow,...itemRows]},
+        layout:{hLineWidth:()=>0.5,vLineWidth:()=>0.5,hLineColor:()=>"#000",vLineColor:()=>"#000"},
+        margin:[0,0,0,10]
+      },
+      ...totals,
+      {
+        columns:[
+          {width:"40%",table:{widths:["100%"],body:[bankOrDeliver]},layout:{hLineWidth:()=>0.5,vLineWidth:()=>0.5}},
+          {width:6,text:""},
+          {width:"*",table:{widths:["100%"],body:[[{text:"Terms & Conditions:",style:"label"}],[{text:tcText,style:"small"}]]},layout:{hLineWidth:()=>0.5,vLineWidth:()=>0.5}},
         ],
-        margin: [0, 0, 0, 10]
+        margin:[0,0,0,30]
       },
-
-      // ── Items table ──
       {
-        table: {
-          headerRows: 1,
-          widths: [14, "*", 52, 36, 22, 22, 36, 24, 38, 38, 38],
-          body: [headerRow, ...itemRows]
-        },
-        layout: {
-          hLineWidth: () => 0.5,
-          vLineWidth: () => 0.5,
-          hLineColor: () => "#000",
-          vLineColor: () => "#000",
-        },
-        margin: [0, 0, 0, 10]
-      },
-
-      // ── Totals ──
-      { text: `Subtotal: ₹${sub}`, style: "totR" },
-      { text: taxText,             style: "totR" },
-      { text: `Round Off: ₹${round}`, style: "totR" },
-      { canvas: [{ type: "line", x1: 300, y1: 3, x2: 539, y2: 3, lineWidth: 0.8 }] },
-      { text: `Grand Total: ₹${grand}`, style: "grand", margin: [0,2,0,2] },
-      { text: `Amount in Words: ${words}`, style: "small", margin: [0,0,0,10] },
-
-      // ── Bank + T&C ──
-      {
-        columns: [
-          {
-            width: "45%",
-            table: { widths:["100%"], body: [
-              [{ text: "Bank Details:", style:"label" }],
-              [{ text: "Bank: UNION BANK OF INDIA\nA/C No.: 424301010040874\nIFSC: UBIN0542431", style:"small" }],
-            ]},
-            layout: { hLineWidth:()=>0.5, vLineWidth:()=>0.5 }
-          },
-          { width: 6, text: "" },
-          {
-            width: "*",
-            table: { widths:["100%"], body: [
-              [{ text: "Terms & Conditions:", style:"label" }],
-              [{ text:
-                "1. Check complete specifications before placing a confirmed purchase order.\n" +
-                "2. GST % & HSN Code subject to change per Government notification.\n" +
-                "3. Payment 100% advance by Cheque / RTGS / NEFT.\n" +
-                "4. Price validity: 7 days unless otherwise specified.\n" +
-                "5. Stock details subject to change without notice.\n" +
-                "6. Goods once sold will not be taken back.\n" +
-                "7. Items are not for medicinal or direct human consumption.",
-                style:"small"
-              }],
-            ]},
-            layout: { hLineWidth:()=>0.5, vLineWidth:()=>0.5 }
-          },
-        ],
-        margin: [0, 0, 0, 30]
-      },
-
-      // ── Footer ──
-      {
-        columns: [
-          { text: "Receiver's Signature\n\n____________________", fontSize: 10 },
-          { text: "For Siddhi Vinayak Traders\n\nAuthorised Signatory", fontSize: 10, alignment: "right" },
+        columns:[
+          {text: _isPO?"Vendor Acceptance\n\n____________________\nAuthorised Signatory & Stamp":"Receiver's Signature\n\n____________________", fontSize:10},
+          {text:"For Siddhi Vinayak Traders\n\n____________________\nAuthorised Signatory", fontSize:10,alignment:"right"},
         ]
-      },
+      }
     ]
   };
 
-  pdfMake.createPdf(docDefinition).download(`${serial}.pdf`, function() {
-    btn.disabled = false;
-    btn.textContent = "⬇ Download PDF & Sync Sheet";
-    syncToSheets(serial, type, date, place, mode, billed, shipped,
-                 itemsSummary.join("; "), parseFloat(sub), totalGstAmt, parseFloat(grand));
+  pdfMake.createPdf(dd).download(`${serial}.pdf`, function() {
+    btn.disabled=false; btn.textContent="⬇ Download PDF & Sync Sheet";
+    syncToSheets(serial,type,date,place,mode,billed,shipped,
+      summary.join("; "), parseFloat(sub), totalGstAmt, parseFloat(grand));
   });
 }
 
-// ── Google Sheets sync ─────────────────────────────────────
-// Uses GET + query params via <img> tag trick to bypass CORS entirely.
-// Apps Script doGet() reads e.parameter.* fields.
-function syncToSheets(docNo, docType, date, place, mode, billedTo, shippedTo,
-                      itemsSummary, subtotal, gst, grandTotal) {
-  const baseUrl = (localStorage.getItem("svt_sheets_url") || "").trim();
-  const status  = document.getElementById("syncStatus");
-
-  if (!baseUrl) {
-    status.className = "sync-status err";
-    status.textContent = "⚠ Sheets URL not set. PDF saved locally only.";
-    setTimeout(() => { status.className = "sync-status"; }, 5000);
-    return;
+// ─────────────────────────────────────────────
+// GOOGLE SHEETS SYNC (JSONP)
+// ─────────────────────────────────────────────
+function syncToSheets(docNo,docType,date,place,mode,billedTo,shippedTo,items,sub,gst,grand) {
+  const url    = (localStorage.getItem("svt_sheets_url")||"").trim();
+  const status = document.getElementById("syncStatus");
+  if (!url) {
+    status.className="sync-status err"; status.textContent="⚠ Sheets URL not set. PDF saved locally only.";
+    setTimeout(()=>{status.className="sync-status";},5000); return;
   }
-
-  status.className = "sync-status loading";
-  status.textContent = "Syncing to Google Sheets…";
-
-  // Build query string — Apps Script doGet reads e.parameter
-  const params = new URLSearchParams({
-    docNo, docType, date, place, mode,
-    billedTo:     billedTo.replace(/\n/g, " | "),
-    shippedTo:    shippedTo.replace(/\n/g, " | "),
-    itemsSummary,
-    subtotal:     subtotal.toFixed(2),
-    gst:          gst.toFixed(2),
-    grandTotal:   grandTotal.toFixed(2)
-  });
-
-  const fullUrl = `${baseUrl}?${params.toString()}`;
-
-  // Use a no-CORS-safe technique: inject a script tag (JSONP-style).
-  // Apps Script returns JSON; we wrap in a callback.
-  const cbName = "svt_cb_" + Date.now();
-  const script  = document.createElement("script");
-
-  window[cbName] = function(resp) {
-    delete window[cbName];
-    document.body.removeChild(script);
-    if (resp && resp.status === "ok") {
-      status.className = "sync-status ok";
-      status.textContent = `✅ Synced: ${docNo} → Google Sheets`;
-    } else {
-      status.className = "sync-status err";
-      status.textContent = `❌ Sheets error: ${resp ? resp.message : "unknown"}`;
-    }
-    setTimeout(() => { status.className = "sync-status"; }, 6000);
+  status.className="sync-status loading"; status.textContent="Syncing to Google Sheets…";
+  const params=new URLSearchParams({docNo,docType,date,place,mode,
+    billedTo:billedTo.replace(/\n/g," | "), shippedTo:shippedTo.replace(/\n/g," | "),
+    itemsSummary:items, subtotal:sub.toFixed(2), gst:gst.toFixed(2), grandTotal:grand.toFixed(2)});
+  const cb=`svt_cb_${Date.now()}`;
+  const s=document.createElement("script");
+  window[cb]=function(r){
+    delete window[cb]; document.body.removeChild(s);
+    if(r&&r.status==="ok"){ status.className="sync-status ok"; status.textContent=`✅ Synced: ${docNo} → Google Sheets`; }
+    else{ status.className="sync-status err"; status.textContent=`❌ Sheets error: ${r?r.message:"unknown"}`; }
+    setTimeout(()=>{status.className="sync-status";},6000);
   };
-
-  // Append callback param for JSONP
-  script.src = `${fullUrl}&callback=${cbName}`;
-  script.onerror = function() {
-    delete window[cbName];
-    document.body.removeChild(script);
-    status.className = "sync-status err";
-    status.textContent = "❌ Sync failed — check your Web App URL.";
-    setTimeout(() => { status.className = "sync-status"; }, 6000);
+  s.src=`${url}?${params}&callback=${cb}`;
+  s.onerror=function(){
+    delete window[cb]; document.body.removeChild(s);
+    status.className="sync-status err"; status.textContent="❌ Sync failed — check your Web App URL.";
+    setTimeout(()=>{status.className="sync-status";},6000);
   };
-
-  document.body.appendChild(script);
+  document.body.appendChild(s);
 }
 
-// ── Init: load saved URL ──────────────────────────────────
-document.getElementById("sheetsUrl").value = localStorage.getItem("svt_sheets_url") || "";
+// ─────────────────────────────────────────────
+// GOOGLE SHEETS URL PERSISTENCE
+// ─────────────────────────────────────────────
+function saveSheetsUrl(){ localStorage.setItem("svt_sheets_url",document.getElementById("sheetsUrl").value.trim()); }
+document.getElementById("sheetsUrl").value = localStorage.getItem("svt_sheets_url")||"";
+
+// ─────────────────────────────────────────────
+// INIT
+// ─────────────────────────────────────────────
+flatpickr("#today",{dateFormat:"d-M-Y",defaultDate:new Date()});
+document.querySelectorAll("textarea").forEach(autoExpand);
+renderThead();
+renderBottom();
+updateSerialPreview();
+document.getElementById("qno").value = peekNextSerial();
 </script>
 </body>
 </html>
