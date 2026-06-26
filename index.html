@@ -1,513 +1,104 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SVT Document System v2</title>
-
+<title>PDF Test</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-
 <style>
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-:root {
-  --ink:     #1c1e21;
-  --muted:   #5f6368;
-  --border:  #dadce0;
-  --surface: #ffffff;
-  --bg:      #f0f2f5;
-  --accent:  #1877f2;
-  --accent2: #6d4c41;
-  --danger:  #e53935;
-  --success: #2e7d32;
-  --radius:  10px;
-  --shadow:  0 2px 12px rgba(0,0,0,0.10);
-}
-
-body {
-  font-family: 'Segoe UI', system-ui, sans-serif;
-  background: var(--bg);
-  color: var(--ink);
-  padding: 24px 16px;
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  gap: 28px;
-  flex-wrap: wrap;
-  min-height: 100vh;
-}
-
-/* ── Control Panel ── */
-.panel {
-  width: 380px;
-  background: var(--surface);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-  padding: 22px 20px;
-  position: sticky;
-  top: 20px;
-  z-index: 100;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-.panel-title {
-  font-size: 15px;
-  font-weight: 700;
-  letter-spacing: .4px;
-  color: var(--ink);
-  border-bottom: 2px solid var(--ink);
-  padding-bottom: 10px;
-}
-
-/* PO mode panel accent */
-body.po-mode .panel         { border-top: 3px solid var(--accent2); }
-body.po-mode .panel-title   { color: var(--accent2); border-bottom-color: var(--accent2); }
-
-.field-group { display: flex; flex-direction: column; gap: 5px; }
-.field-group label {
-  font-size: 11px; font-weight: 700; color: var(--muted);
-  text-transform: uppercase; letter-spacing: .5px;
-}
-.field-group select,
-.field-group input[type="text"],
-.field-group input[type="file"] {
-  width: 100%; padding: 10px 12px;
-  border: 1px solid var(--border); border-radius: 8px;
-  font-size: 13px; color: var(--ink); background: var(--surface);
-  transition: border-color .2s;
-}
-.field-group select:focus,
-.field-group input[type="text"]:focus { outline: none; border-color: var(--accent); }
-
-/* Show/hide panel rows */
-.po-only  { display: none !important; }         /* hidden by default */
-.qt-only  { display: flex !important; }          /* visible by default */
-body.po-mode .po-only { display: flex !important; }
-body.po-mode .qt-only { display: none !important; }
-
-.serial-display {
-  background: #eef3fc; border: 1px dashed var(--accent);
-  border-radius: 8px; padding: 10px 14px; font-size: 13px;
-  display: flex; justify-content: space-between; align-items: center;
-}
-body.po-mode .serial-display { background: #efebe9; border-color: var(--accent2); }
-.serial-display span { font-weight: 700; color: var(--accent); font-size: 15px; letter-spacing: .5px; }
-body.po-mode .serial-display span { color: var(--accent2); }
-.serial-display button {
-  font-size: 11px; background: none;
-  border: 1px solid var(--accent); color: var(--accent);
-  border-radius: 6px; padding: 4px 10px; cursor: pointer;
-}
-body.po-mode .serial-display button { border-color: var(--accent2); color: var(--accent2); }
-
-.sync-status { font-size: 11px; padding: 6px 10px; border-radius: 6px; display: none; }
-.sync-status.ok      { background: #e8f5e9; color: var(--success); display: block; }
-.sync-status.err     { background: #ffebee; color: var(--danger);  display: block; }
-.sync-status.loading { background: #fff8e1; color: #f57f17;        display: block; }
-
-.btn {
-  width: 100%; padding: 12px; border: none; border-radius: 8px;
-  font-size: 14px; font-weight: 700; cursor: pointer;
-  transition: opacity .2s, transform .1s; letter-spacing: .3px;
-}
-.btn:active   { transform: scale(.98); }
-.btn:disabled { opacity: .5; cursor: not-allowed; }
-.btn-add { background: #eef3fc; color: var(--accent); }
-body.po-mode .btn-add { background: #efebe9; color: var(--accent2); }
-.btn-dl  { background: var(--ink); color: #fff; }
-.btn-dl:hover:not(:disabled) { background: #2d3033; }
-
-/* ── Preview ── */
-.preview-wrap { overflow-x: auto; padding-bottom: 24px; }
-
-#quote {
-  width: 210mm; min-height: 296mm; background: #fff;
-  padding: 14mm 15mm; color: #000;
-  box-shadow: 0 4px 24px rgba(0,0,0,0.13);
-  margin: 0 auto;
-  font-family: 'Segoe UI', Arial, sans-serif; font-size: 11px; position: relative;
-}
-.p-header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 8px; margin-bottom: 12px; }
-.p-header h2 { font-size: 18px; margin-bottom: 3px; }
-.p-header p  { font-size: 10px; margin: 2px 0; color: #333; }
-
-.doc-title {
-  text-align: center; font-size: 15px; font-weight: 700;
-  text-decoration: underline; margin: 8px 0 10px; letter-spacing: 1px;
-}
-.p-info-table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
-.p-info-table td { border: 1px solid #000; padding: 5px 7px; font-size: 10.5px; vertical-align: middle; }
-.p-info-table td b { white-space: nowrap; }
-.p-info-table input {
-  width: 100%; border: none; outline: none;
-  background: transparent; font-size: 10.5px; font-family: inherit;
-}
-.p-address-row { display: flex; gap: 12px; margin-bottom: 12px; }
-.p-address-box {
-  flex: 1; border: 1px solid #000; padding: 7px;
-  min-height: 90px; font-size: 10.5px; position: relative;
-}
-.p-address-box b { display: block; margin-bottom: 3px; }
-.p-address-box textarea {
-  width: 100%; min-height: 65px; resize: none; border: none; outline: none;
-  font-family: inherit; font-size: 10.5px; line-height: 1.45;
-  background: transparent; white-space: pre-wrap; word-wrap: break-word; overflow: hidden;
-}
-.same-check {
-  position: absolute; top: 6px; right: 7px; font-size: 9.5px;
-  color: var(--muted); display: flex; align-items: center; gap: 4px; cursor: pointer;
-}
-.same-check input { cursor: pointer; }
-
-table.item-table { width: 100%; border-collapse: collapse; table-layout: fixed; margin-top: 8px; }
-table.item-table th,
-table.item-table td { border: 1px solid #000; padding: 0; font-size: 10.5px; vertical-align: top; }
-table.item-table th {
-  background: #f2f2f2; padding: 7px 5px; font-weight: 700;
-  text-align: center; vertical-align: middle; font-size: 10px;
-}
-table.item-table td textarea,
-table.item-table td input[type="number"],
-table.item-table td input[type="text"] {
-  width: 100%; border: none; outline: none; background: transparent;
-  font-family: inherit; font-size: 10.5px; padding: 6px 5px;
-  resize: none; display: block; overflow: hidden;
-  white-space: pre-wrap; word-wrap: break-word; text-align: center; box-sizing: border-box;
-}
-table.item-table td textarea { text-align: left; }
-
-.i_total_wrap { padding: 5px 4px; text-align: center; line-height: 1.5; }
-.i_total_base { font-size: 9.5px; color: #555; }
-.i_total_gst  { font-size: 9.5px; color: #555; }
-.i_total_amt  { font-weight: 700; font-size: 10.5px; }
-
-.del-btn {
-  background: none; border: none; color: var(--danger); cursor: pointer;
-  font-size: 14px; padding: 6px 4px;
-  display: flex; align-items: center; justify-content: center; width: 100%; height: 100%;
-}
-.del-btn:hover { background: #ffebee; }
-
-.p-totals { text-align: right; margin-top: 14px; font-size: 12px; line-height: 1.7; }
-.p-grand-total {
-  font-size: 15px; font-weight: 700; border-top: 1.5px solid #000;
-  padding-top: 4px; display: inline-block; min-width: 200px;
-}
-.p-words { font-size: 10.5px; margin-top: 4px; }
-
-.p-bottom-row { display: flex; border: 1px solid #000; margin-top: 16px; }
-.p-bottom-box { padding: 8px; font-size: 9.5px; flex: 1; border-right: 1px solid #000; line-height: 1.5; }
-.p-bottom-box:last-child { border-right: none; }
-.p-bottom-box b { display: block; margin-bottom: 3px; font-size: 10px; }
-
-.p-footer { display: flex; justify-content: space-between; margin-top: 44px; font-size: 11px; }
-
-@media print {
-  .panel, .preview-wrap > *:not(#quote) { display: none !important; }
-  body { background: white; padding: 0; display: block; }
-  #quote { box-shadow: none; margin: 0; width: 100%; }
-  .del-col { display: none !important; }
-}
-@media (max-width: 860px) {
-  .panel { width: 100%; position: relative; top: 0; }
-  body { flex-direction: column; align-items: stretch; padding: 12px; }
-}
+  body { font-family: sans-serif; padding: 40px; background: #f5f5f5; }
+  button { padding: 16px 32px; font-size: 16px; margin: 10px; cursor: pointer; border: none; border-radius: 8px; }
+  .t1 { background: #1877f2; color: white; }
+  .t2 { background: #2e7d32; color: white; }
+  .t3 { background: #e53935; color: white; }
+  #log { margin-top: 20px; background: white; padding: 16px; border-radius: 8px; font-size: 13px; white-space: pre-wrap; min-height: 100px; border: 1px solid #ccc; }
 </style>
 </head>
 <body>
 
-<!-- ═══ CONTROL PANEL ═══ -->
-<div class="panel" id="controlPanel">
-  <div class="panel-title">SVT Document Editor</div>
+<h2>pdfmake Download Test</h2>
+<p>Tap each button and report which ones work:</p>
 
-  <div class="field-group">
-    <label>Document Type</label>
-    <select id="docType" onchange="onTypeChange()">
-      <option value="QUOTATION">Quotation</option>
-      <option value="PROFORMA INVOICE">Proforma Invoice</option>
-      <option value="PURCHASE ORDER">Purchase Order</option>
-    </select>
-  </div>
+<button class="t1" onclick="test1()">Test 1: pdfmake.open()</button>
+<button class="t2" onclick="test2()">Test 2: Blob + anchor click</button>
+<button class="t3" onclick="test3()">Test 3: Base64 data URI</button>
 
-  <div class="field-group">
-    <label>Serial Number</label>
-    <div class="serial-display">
-      <div>Next: <span id="serialPreview">SVT-QT-06-001</span></div>
-      <button onclick="resetCounter()">Reset</button>
-    </div>
-  </div>
-
-  <!-- QT / PI only -->
-  <div class="field-group qt-only" id="stateRow">
-    <label>Place of Supply (State)</label>
-    <select id="clientState" onchange="calc()">
-      <option value="01">Jammu & Kashmir (01)</option>
-      <option value="02">Himachal Pradesh (02)</option>
-      <option value="03">Punjab (03)</option>
-      <option value="04">Chandigarh (04)</option>
-      <option value="05">Uttarakhand (05)</option>
-      <option value="06">Haryana (06)</option>
-      <option value="07">Delhi (07)</option>
-      <option value="08">Rajasthan (08)</option>
-      <option value="09" selected>Uttar Pradesh (09)</option>
-      <option value="10">Bihar (10)</option>
-      <option value="11">Sikkim (11)</option>
-      <option value="12">Arunachal Pradesh (12)</option>
-      <option value="13">Nagaland (13)</option>
-      <option value="14">Manipur (14)</option>
-      <option value="15">Mizoram (15)</option>
-      <option value="16">Tripura (16)</option>
-      <option value="17">Meghalaya (17)</option>
-      <option value="18">Assam (18)</option>
-      <option value="19">West Bengal (19)</option>
-      <option value="20">Jharkhand (20)</option>
-      <option value="21">Odisha (21)</option>
-      <option value="22">Chhattisgarh (22)</option>
-      <option value="23">Madhya Pradesh (23)</option>
-      <option value="24">Gujarat (24)</option>
-      <option value="25">Daman & Diu (25)</option>
-      <option value="26">Dadra & Nagar Haveli (26)</option>
-      <option value="27">Maharashtra (27)</option>
-      <option value="30">Goa (30)</option>
-      <option value="31">Lakshadweep (31)</option>
-      <option value="32">Kerala (32)</option>
-      <option value="33">Tamil Nadu (33)</option>
-      <option value="34">Puducherry (34)</option>
-      <option value="35">Andaman & Nicobar Islands (35)</option>
-      <option value="36">Telangana (36)</option>
-      <option value="37">Andhra Pradesh (37)</option>
-      <option value="38">Ladakh (38)</option>
-    </select>
-  </div>
-
-  <!-- PO only -->
-  <div class="field-group po-only">
-    <label>Delivery Location</label>
-    <select id="poDeliveryLoc" onchange="syncPOFields()">
-      <option value="Firozabad Godown">Firozabad Godown</option>
-      <option value="12/306, Arya Nagar, Firozabad">Arya Nagar, Firozabad</option>
-      <option value="As per Order">As per Order</option>
-    </select>
-  </div>
-  <div class="field-group po-only">
-    <label>Payment Terms</label>
-    <select id="poPaymentTerms" onchange="syncPOFields()">
-      <option value="100% Advance">100% Advance</option>
-      <option value="Against Delivery">Against Delivery</option>
-      <option value="15 Days Credit">15 Days Credit</option>
-      <option value="30 Days Credit">30 Days Credit</option>
-      <option value="45 Days Credit">45 Days Credit</option>
-      <option value="60 Days Credit">60 Days Credit</option>
-    </select>
-  </div>
-  <div class="field-group po-only">
-    <label>Required By Date</label>
-    <input type="text" id="poRequiredBy" placeholder="e.g. 05-Jul-2026" oninput="syncPOFields()">
-  </div>
-
-  <div class="field-group">
-    <label>Google Sheets Sync URL</label>
-    <input type="text" id="sheetsUrl" placeholder="Paste your Apps Script Web App URL here" oninput="saveSheetsUrl()">
-  </div>
-
-  <div id="syncStatus" class="sync-status"></div>
-
-  <div class="field-group">
-    <label>Import Items from Excel</label>
-    <input type="file" id="excelUpload" accept=".xlsx,.xls,.csv" onchange="importExcel(this)">
-  </div>
-
-  <button class="btn btn-add" onclick="addRow()">+ Add Item Row</button>
-  <button class="btn btn-dl" id="dlBtn" onclick="confirmAndGenerate()">⬇ Download PDF & Sync Sheet</button>
-</div>
-
-<!-- ═══ A4 DOCUMENT PREVIEW ═══ -->
-<div class="preview-wrap">
-<div id="quote">
-
-  <div class="p-header">
-    <h2>SIDDHI VINAYAK TRADERS</h2>
-    <p>12/306, Arya Nagar, Firozabad, UP – 283203</p>
-    <p>GSTIN: 09BFZPK4340C2Z7 &nbsp;|&nbsp; +91 9286107722 &nbsp;|&nbsp; svtjp11@gmail.com</p>
-  </div>
-
-  <div class="doc-title" id="docTitle">QUOTATION</div>
-
-  <table class="p-info-table" id="infoTable">
-    <tr>
-      <td style="width:20%"><b id="docLabel">Quotation No:</b></td>
-      <td style="width:30%"><input id="qno" value="" style="font-weight:700;"></td>
-      <td style="width:10%"><b>Date:</b></td>
-      <td><input id="today"></td>
-    </tr>
-    <tr>
-      <td><b id="row2col1">Place (City):</b></td>
-      <td><input id="place" placeholder="City"></td>
-      <td><b>Mode:</b></td>
-      <td>
-        <select id="mode" style="width:100%;border:none;outline:none;background:transparent;font-size:10.5px;font-family:inherit;padding:2px 0;">
-          <option value="Courier">Courier</option>
-          <option value="Speed Post">Speed Post</option>
-          <option value="Hand Delivery">Hand Delivery</option>
-          <option value="Transport">Transport</option>
-          <option value="By Air">By Air</option>
-          <option value="By Road">By Road</option>
-        </select>
-      </td>
-    </tr>
-    <!-- PO extra row, hidden by default -->
-    <tr id="poExtraRow" style="display:none;">
-      <td><b>Required By:</b></td>
-      <td><input id="poReqDisplay" placeholder="dd-Mon-YYYY" readonly></td>
-      <td><b>Payment:</b></td>
-      <td>
-        <select id="poPayDisplay" style="width:100%;border:none;outline:none;background:transparent;font-size:10.5px;font-family:inherit;padding:2px 0;">
-          <option value="">-- Select --</option>
-          <option value="100% Advance">100% Advance</option>
-          <option value="Against Delivery">Against Delivery</option>
-          <option value="15 Days Credit">15 Days Credit</option>
-          <option value="30 Days Credit">30 Days Credit</option>
-          <option value="45 Days Credit">45 Days Credit</option>
-          <option value="60 Days Credit">60 Days Credit</option>
-        </select>
-      </td>
-    </tr>
-  </table>
-
-  <div class="p-address-row">
-    <div class="p-address-box">
-      <b id="addr1Label">Billed To:</b>
-      <textarea id="billed" placeholder="Name&#10;Address&#10;GSTIN" oninput="autoExpand(this)"></textarea>
-    </div>
-    <div class="p-address-box">
-      <b id="addr2Label">Shipped To:</b>
-      <label class="same-check" id="sameLabel">
-        <input type="checkbox" id="sameCheck" onchange="syncShipped()"> Same as Billed
-      </label>
-      <textarea id="shipped" placeholder="Name&#10;Address" oninput="autoExpand(this)"></textarea>
-    </div>
-  </div>
-
-  <table class="item-table">
-    <thead id="itemThead"></thead>
-    <tbody id="tbody"></tbody>
-  </table>
-
-  <div class="p-totals">
-    <p>Subtotal: ₹ <span id="sub">0.00</span></p>
-    <div id="p_tax_container"></div>
-    <p id="roundRow">Round Off: ₹ <span id="round">0.00</span></p>
-    <div class="p-grand-total">Grand Total: ₹ <span id="grand">0.00</span></div>
-    <p class="p-words"><b>Amount in Words:</b> <span id="words">Zero Rupees Only</span></p>
-  </div>
-
-  <div class="p-bottom-row" id="bottomRow"></div>
-
-  <div class="p-footer" id="docFooter"></div>
-
-</div>
-</div>
+<div id="log">Tap a button to start test...\n</div>
 
 <script>
-// ─────────────────────────────────────────────
-// HELPERS
-// ─────────────────────────────────────────────
-function isPO() { return document.getElementById("docType").value === "PURCHASE ORDER"; }
-function isPI() { return document.getElementById("docType").value === "PROFORMA INVOICE"; }
-function isUP() { return document.getElementById("clientState").value === "09"; }
-function getMonthStr() { return String(new Date().getMonth()+1).padStart(2,"0"); }
+var log = document.getElementById("log");
+function lg(msg) { log.textContent += msg + "\n"; }
 
-function getTypeCode() {
-  const v = document.getElementById("docType").value;
-  if (v === "PROFORMA INVOICE") return "PI";
-  if (v === "PURCHASE ORDER")   return "PO";
-  return "QT";
-}
-function getStorageKey() { return `svt_counter_${getTypeCode()}_${getMonthStr()}`; }
+var dd = {
+  content: [
+    { text: "SIDDHI VINAYAK TRADERS", fontSize: 16, bold: true, alignment: "center" },
+    { text: "Test PDF - SVT Document System", fontSize: 12, margin: [0, 10, 0, 10] },
+    { text: "If you can see this PDF, that method works!", fontSize: 10 }
+  ]
+};
 
-function peekNextSerial() {
-  const last = parseInt(localStorage.getItem(getStorageKey()) || "0");
-  return `SVT-${getTypeCode()}-${getMonthStr()}-${String(last+1).padStart(3,"0")}`;
-}
-function consumeSerial() {
-  const key  = getStorageKey();
-  const next = parseInt(localStorage.getItem(key)||"0") + 1;
-  localStorage.setItem(key, String(next));
-  return `SVT-${getTypeCode()}-${getMonthStr()}-${String(next).padStart(3,"0")}`;
-}
-function updateSerialPreview() {
-  document.getElementById("serialPreview").textContent = peekNextSerial();
-}
-function resetCounter() {
-  const type=getTypeCode(), month=getMonthStr();
-  if (confirm(`Reset ${type} counter for month ${month} back to 0?`)) {
-    localStorage.setItem(getStorageKey(), "0");
-    updateSerialPreview();
-    alert("Counter reset. Next serial will be …-001.");
+function test1() {
+  lg("Test 1: Trying pdfmake.open()...");
+  try {
+    pdfMake.createPdf(dd).open();
+    lg("Test 1: open() called — check if new tab opened");
+  } catch(e) {
+    lg("Test 1 ERROR: " + e.message);
   }
 }
 
-// ─────────────────────────────────────────────
-// AUTO-EXPAND TEXTAREAS
-// ─────────────────────────────────────────────
-function autoExpand(el) {
-  el.style.height = "auto";
-  el.style.height = el.scrollHeight + "px";
-}
-
-// ─────────────────────────────────────────────
-// SAME-AS-BILLED
-// ─────────────────────────────────────────────
-function syncShipped() {
-  const cb = document.getElementById("sameCheck");
-  const sh = document.getElementById("shipped");
-  if (cb.checked) { sh.value = document.getElementById("billed").value; sh.disabled = true; autoExpand(sh); }
-  else            { sh.disabled = false; }
-}
-document.getElementById("billed").addEventListener("input", function() {
-  if (document.getElementById("sameCheck").checked) {
-    const s = document.getElementById("shipped");
-    s.value = this.value; autoExpand(s);
+function test2() {
+  lg("Test 2: Trying Blob + anchor...");
+  try {
+    pdfMake.createPdf(dd).getBlob(function(blob) {
+      lg("Test 2: Got blob, size=" + blob.size);
+      try {
+        var url = URL.createObjectURL(blob);
+        lg("Test 2: Blob URL created: " + url.substring(0,40));
+        var a = document.createElement("a");
+        a.href = url;
+        a.download = "svt_test.pdf";
+        a.style.display = "none";
+        document.body.appendChild(a);
+        a.click();
+        lg("Test 2: anchor.click() called");
+        setTimeout(function() {
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+          lg("Test 2: cleanup done — did file download?");
+        }, 2000);
+      } catch(e2) {
+        lg("Test 2 inner ERROR: " + e2.message);
+      }
+    });
+  } catch(e) {
+    lg("Test 2 ERROR: " + e.message);
   }
-});
-
-// ─────────────────────────────────────────────
-// PO FIELD SYNC → preview read-only cells
-// ─────────────────────────────────────────────
-function syncPOFields() {
-  document.getElementById("poReqDisplay").value = document.getElementById("poRequiredBy").value;
-  document.getElementById("poPayDisplay").value  = document.getElementById("poPaymentTerms").value;
-  document.getElementById("place").value         = document.getElementById("poDeliveryLoc").value;
 }
 
-// ─────────────────────────────────────────────
-// RENDER TABLE HEADER
-// ─────────────────────────────────────────────
-function renderThead() {
-  const thead = document.getElementById("itemThead");
-  if (isPO()) {
-    thead.innerHTML = `<tr>
-      <th style="width:30%">Item Description</th>
-      <th style="width:13%">CAS No</th>
-      <th style="width:10%">Pack Size</th>
-      <th style="width:7%">Qty</th>
-      <th style="width:7%">Unit</th>
-      <th style="width:10%">Rate (₹)</th>
-      <th style="width:6%">HSN/SAC</th>
-      <th style="width:10%">Amount (₹)</th>
-      <th style="width:7%" class="del-col">Del</th>
-    </tr>`;
-  } else {
-    thead.innerHTML = `<tr>
-      <th style="width:29%">Item Description</th>
-      <th style="width:13%">CAS No</th>
-      <th style="width:10%">Pack</th>
-      <th style="width:7%">Qty</th>
-      <th style="width:7%">Unit</th>
-      <th style="width:10%">Rate (₹)</th>
-      <th style="width:6%">GST%</th>
+function test3() {
+  lg("Test 3: Trying Base64 data URI...");
+  try {
+    pdfMake.createPdf(dd).getBase64(function(b64) {
+      lg("Test 3: Got base64, length=" + b64.length);
+      try {
+        var a = document.createElement("a");
+        a.href = "data:application/pdf;base64," + b64;
+        a.download = "svt_test.pdf";
+        a.style.display = "none";
+        document.body.appendChild(a);
+        a.click();
+        lg("Test 3: anchor.click() called — did file download?");
+        setTimeout(function() { document.body.removeChild(a); }, 2000);
+      } catch(e2) {
+        lg("Test 3 inner ERROR: " + e2.message);
+      }
+    });
+  } catch(e) {
+    lg("Test 3 ERROR: " + e.message);
+  }
+}
+</script>
+</body>
+</html>
